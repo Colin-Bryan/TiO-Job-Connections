@@ -1,10 +1,1 @@
-pandas
-numpy
-openpyxl
-requests
-streamlit
-docx2txt
-pdfminer.six
-nltk
-textract
-bs4
+
