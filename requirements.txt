@@ -6,4 +6,4 @@ docx2txt
 pdfminer.six
 nltk
 textract
-beautifulsoup4
+bs4
