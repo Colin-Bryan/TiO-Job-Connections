@@ -2,6 +2,7 @@
 import pandas as pd
 from bs4 import BeautifulSoup
 import requests
+from datetime import datetime
 
 # Create employer postings dataframe and return URLs
 def get_employer_postings():
@@ -19,7 +20,7 @@ def get_employer_postings():
     # Save URLs into a list
     url_list = list(postings_df['Opening URL'])
 
-    return postings_df, url_list
+    return url_list
 
 def scrape_indeed_postings(url_list):
     
@@ -88,4 +89,13 @@ def scrape_indeed_postings(url_list):
     # Drop rows that didn't return results
     indeed_df = indeed_df[indeed_df['Description'] != 'Could not find description'].reset_index(drop=True)
     
-    return indeed_df 
+    # Output job postings to Excel for archiving
+    indeed_df.to_excel('data//postings//Job Postings_{}.xlsx'.format(datetime.now().strftime("%Y-%m-%d")),index=False)
+
+    # Create most recent job postings for processing
+    indeed_df.to_excel('data//Job Postings.xlsx',index=False)
+
+    # CB 7.16 - Empty return for placeholder
+    return
+
+# Will need functions to concatenate all dataframes into one job postings file
