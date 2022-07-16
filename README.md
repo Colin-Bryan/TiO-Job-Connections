@@ -1,2 +1,2 @@
 # TiO-Job-Connections
-A Machine Learning App to connect job seekers with job opportunities 
+A Machine Learning app to connect job seekers with job opportunities 
