@@ -1,1 +1,10 @@
-
+streamlit
+pandas
+numpy
+bs4
+plotly-express
+requests
+pdfminer.six
+docx2txt
+textract
+nltk
