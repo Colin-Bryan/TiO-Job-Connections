@@ -1,5 +1,6 @@
 pandas
 numpy
+requests
 streamlit
 docx2txt
 pdfminer.six
