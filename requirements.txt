@@ -4,3 +4,4 @@ streamlit
 docx2txt
 pdfminer.six
 nltk
+textract
