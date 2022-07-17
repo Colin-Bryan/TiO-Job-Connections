@@ -4,7 +4,7 @@ import plotly.express as px
 import pandas as pd
 import os
 import time
-from scripts.process_resume import TextPipeline
+from scripts.process_resume import ExtractText, AnalyzeText
 from scripts.employer_postings import get_employer_postings, scrape_indeed_postings
 
 
@@ -15,7 +15,6 @@ def main():
 
     # Streamlit title 
     st.title(":handshake: Find Job Opportunities")
-
 
     # Initilalize form holder as empty element
     upload_form_holder = st.empty()
@@ -42,44 +41,80 @@ def main():
 
             # First, Scrape Resume and Extract Text
             with st.spinner("Processing Resume.."):
-                # Initialize TextPipeline class
-                txt_pipe = TextPipeline()
+                ##### Initialize ExtractText class #####
+                ext_txt = ExtractText()
 
                 # Extract text from resume
-                resume_text = txt_pipe.get_resume_text(uploaded_file)
-                #st.write(resume_text)
+                raw_text = ext_txt.get_resume_text(uploaded_file)
+                #st.write(raw_text)
 
                 # Get person's name
-                name = txt_pipe.get_name(resume_text)
-                st.subheader(name)
+                name = ext_txt.get_name(raw_text)
+                #st.subheader(name)
+
                 # Get person's email
-                email = txt_pipe.get_email(resume_text)
+                email = ext_txt.get_email(raw_text)
                 #st.write(email)
 
                 # Get person's phone number
-                phone = txt_pipe.get_phone(resume_text)
+                phone = ext_txt.get_phone(raw_text)
                 #st.write(phone)
+
+                # Get person's location
+                # CB 7.17 - Update arguments when cleaned up
+                resume_location = ext_txt.get_location(raw_text, name)
+                #st.write(resume_location)
 
                 # CB 7.16 - Commenting out due to API limit
                 # Get person's skills
-                #skills = txt_pipe.get_skills(resume_text)
+                #skills = ext_txt.get_skills(raw_text)
                 #st.write(skills)
+                skills = ''
 
                 # CB 7.16 - Commenting out due to inaccuracy
                 # Get person's education
-                #education = txt_pipe.get_education(resume_text)
+                #education = ext_txt.get_education(raw_text)
                 #st.write(education)
-            
+                education = ''
+
+                # Append all extracted attributes to a dictionary
+                attribute_dict = {'Name':name,'Email':email,'Phone':phone,
+                                'Location':resume_location,'Skills':skills,'Education':education}
+
+                ##### Initialize AnalyzeText class #####
+                anlyz_txt = AnalyzeText()
+
+                # Create processed_text by tokening the raw resume text
+                processed_text = anlyz_txt.tokenize_text(raw_text)
+
+                #  Build features from processed_text
+                df_list = anlyz_txt.word_count_features(processed_text)
+
+                # Display DataFrames by looping
+                for i, word_count_df in enumerate(df_list):
+                    if i == 0:
+                        st.subheader('Unigrams Only')
+                    if i == 1:
+                        st.subheader('Bigrams Only')
+                    elif i == 2:
+                        st.subheader('Trigrams Only')
+
+                    # Write top 10 results 
+                    st.dataframe(word_count_df.sort_values(by=['Tf-idf Score'], ascending = False)[0:10])
+
+                # Chunk text
+                #txt, attrdict = anlyz_txt.chunk_text(raw_text, attribute_dict)
+
             # Next, find job matches
             with st.spinner("Finding Matches.."):
+
                 # Load in job postings existing in data folder to a dataframe
                 if os.path.exists("data//Job Postings.xlsx"):
                     jobs_df = pd.read_excel("data/Job Postings.xlsx")
-                    st.dataframe(jobs_df[['Title','URL']])
+                    #st.dataframe(jobs_df[['Title','URL']])
                 else:
                     st.error('No job postings found for comparison')
 
-        
         
         ### CB 7.16 - Commenting out filter functionality
         # # Create multiselect filter for location
@@ -100,6 +135,8 @@ def main():
 
 
     ######## ---- INITIALIZE SIDEBAR ---- ########
+    # Sidebar Image
+    st.sidebar.image('data\images\TiO Logo.png')
 
     # Create Sidebar Title
     st.sidebar.title("Admin Settings")            
@@ -229,33 +266,33 @@ def main():
 
     #     # First, Scrape Resume and Extract Text
     #     with st.spinner("Processing Resume.."):
-    #         # Initialize TextPipeline class
-    #         txt_pipe = TextPipeline()
+    #         # Initialize ExtractText class
+    #         ext_txt = ExtractText()
 
     #         # Extract text from resume
-    #         resume_text = txt_pipe.get_resume_text(uploaded_file)
-    #         #st.write(resume_text)
+    #         raw_text = ext_txt.get_raw_text(uploaded_file)
+    #         #st.write(raw_text)
 
     #         # Get person's name
-    #         name = txt_pipe.get_name(resume_text)
+    #         name = ext_txt.get_name(raw_text)
     #         st.write(name)
 
     #         # Get person's email
-    #         email = txt_pipe.get_email(resume_text)
+    #         email = ext_txt.get_email(raw_text)
     #         st.write(email)
 
     #         # Get person's phone number
-    #         phone = txt_pipe.get_phone(resume_text)
+    #         phone = ext_txt.get_phone(raw_text)
     #         st.write(phone)
 
     #         # CB 7.16 - Commenting out due to API limit
     #         # Get person's skills
-    #         #skills = txt_pipe.get_skills(resume_text)
+    #         #skills = ext_txt.get_skills(raw_text)
     #         #st.write(skills)
 
     #         # CB 7.16 - Commenting out due to inaccuracy
     #         # Get person's education
-    #         #education = txt_pipe.get_education(resume_text)
+    #         #education = ext_txt.get_education(raw_text)
     #         #st.write(education)
         
     #     # Next, find job matches
