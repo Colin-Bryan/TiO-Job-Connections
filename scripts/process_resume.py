@@ -3,8 +3,10 @@ from scripts.api import skills_API
 
 ## Import libraries
 import pandas as pd
+import numpy as np
 import re
 import requests
+import string
 
 # .pdf processing
 from pdfminer.high_level import extract_text
@@ -19,7 +21,9 @@ import docx2txt
 import textract
 
 # NLP processing libraries and modules
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 import nltk
+from nltk.stem import WordNetLemmatizer
 nltk.download('punkt')
 nltk.download('averaged_perceptron_tagger')
 nltk.download('maxent_ne_chunker')
@@ -31,7 +35,7 @@ nltk.download('vader_lexicon')
 
 
 #Create class for text pipeline
-class TextPipeline():
+class ExtractText():
     # Initialize class
     def __init__(self):
         return
@@ -66,13 +70,13 @@ class TextPipeline():
 
         return raw_text.replace('\t', ' ')
     
-    # CB 7.16 - Extract name - need to fix intelligence
+    # CB 7.16 - Extract name - need to fix intelligence. Come back and clean up
     def get_name(self, raw_text):
 
-        for sent in nltk.sent_tokenize(raw_text):
-            for chunk in nltk.ne_chunk(nltk.pos_tag(nltk.word_tokenize(sent))):
-                if hasattr(chunk, 'label') and chunk.label() == 'PERSON':
-                    person_name =' '.join(chunk_leave[0] for chunk_leave in chunk.leaves())
+        # for sent in nltk.sent_tokenize(raw_text):
+        #     for chunk in nltk.ne_chunk(nltk.pos_tag(nltk.word_tokenize(sent))):
+        #         if hasattr(chunk, 'label') and chunk.label() == 'PERSON':
+        #             person_name =' '.join(chunk_leave[0] for chunk_leave in chunk.leaves())
         
         # Placeholder to just get the first line from the resume and assume it's the first name
         return raw_text.split('\n')[0]
@@ -81,19 +85,39 @@ class TextPipeline():
     def get_email(self, raw_text):
         
         # Use regular expression to find email
-        EMAIL_REG = re.compile(r'[a-z0-9\.\-+_]+@[a-z0-9\.\-+_]+\.[a-z]+')
+        email_reg = re.compile(r'[a-z0-9\.\-+_]+@[a-z0-9\.\-+_]+\.[a-z]+')
 
         # Return first email found for the person
-        return re.findall(EMAIL_REG, raw_text)[0]
+        return re.findall(email_reg, raw_text)[0]
 
     # Extract phone number
     def get_phone(self, raw_text):
         
         # Use regular expression to find phone
-        PHONE_REG = re.compile(r'[\+\(]?[1-9][0-9 .\-\(\)]{8,}[0-9]')
+        phone_reg = re.compile(r'[\+\(]?[1-9][0-9 .\-\(\)]{8,}[0-9]')
         
         # Return first phone number found for the person
-        return re.findall(PHONE_REG, raw_text)[0]
+        return re.findall(phone_reg, raw_text)[0]
+
+    # Get the candidate's location. CB 7.17 - This is very hacky, need to replace functionality for getting location
+    def get_location(self, raw_text, name):
+
+        # Use regular expression to find location
+        location_reg = re.search(r'([^\d]+)?(\d{5})?', raw_text).group(0)
+        
+        # CB 7.16 - Come back and clean up. Don't have a good way to replace trailing punctuation yet
+        location_reg = location_reg.replace('•','')
+
+        # CB 7.17 - Replace name that is coming back in match and strip out white spaces
+        location_reg = location_reg.replace(name,'').strip()
+
+        # Return location if it ends with a digit 
+        if location_reg[-1].isdigit():
+            return location_reg
+        
+        # Else split on a new line and return the first part
+        else:
+            return location_reg.split('\n')[0]
 
     # CB 7.16 - Disable as we have exceeded API limit. Clean up code ot make it mine
     def get_skills(self, raw_text):
@@ -127,39 +151,156 @@ class TextPipeline():
 
     # CB 7.16 - Disable as this is not a clean solution. Clean up code to make it mine
     def get_education(self, raw_text):
-        RESERVED_WORDS = [
-            'school',
-            'college',
-            'university',
-            'academy',
-            'faculty',
-            'institute',
-            'faculdades',
-            'Schola',
-            'schule',
-            'lise',
-            'lyceum',
-            'lycee',
-            'polytechnic',
-            'kolej',
-            'ünivers',
-            'okul',
-        ]
+        pass
+        # RESERVED_WORDS = [
+        #     'school',
+        #     'college',
+        #     'university',
+        #     'academy',
+        #     'faculty',
+        #     'institute',
+        #     'faculdades',
+        #     'Schola',
+        #     'schule',
+        #     'lise',
+        #     'lyceum',
+        #     'lycee',
+        #     'polytechnic',
+        #     'kolej',
+        #     'ünivers',
+        #     'okul',
+        # ]
 
-        organizations = []
+        # organizations = []
  
-        # first get all the organization names using nltk
-        for sent in nltk.sent_tokenize(raw_text):
-            for chunk in nltk.ne_chunk(nltk.pos_tag(nltk.word_tokenize(sent))):
-                if hasattr(chunk, 'label') and chunk.label() == 'ORGANIZATION':
-                    organizations.append(' '.join(c[0] for c in chunk.leaves()))
+        # # first get all the organization names using nltk
+        # for sent in nltk.sent_tokenize(raw_text):
+        #     for chunk in nltk.ne_chunk(nltk.pos_tag(nltk.word_tokenize(sent))):
+        #         if hasattr(chunk, 'label') and chunk.label() == 'ORGANIZATION':
+        #             organizations.append(' '.join(c[0] for c in chunk.leaves()))
     
-        # we search for each bigram and trigram for reserved words
-        # (college, university etc...)
-        education = set()
-        for org in organizations:
-            for word in RESERVED_WORDS:
-                if org.lower().find(word):
-                    education.add(org)
+        # # we search for each bigram and trigram for reserved words
+        # # (college, university etc...)
+        # education = set()
+        # for org in organizations:
+        #     for word in RESERVED_WORDS:
+        #         if org.lower().find(word):
+        #             education.add(org)
     
-        return education
+        # return education
+
+
+#Create class for text analysis
+class AnalyzeText():
+    # Initialize class
+    def __init__(self):
+        return
+    
+    # Tokenize, remove stop words and punctuation, lemmatize
+    def tokenize_text(self, raw_text):
+
+        # Create stop words and punctuation
+        stop_words = set(nltk.corpus.stopwords.words('english'))
+        punctuation = string.punctuation
+
+        # CB 7.17 - Noticed some punctuation not remove so defining here
+        user_defined_punctuation = ['–','•','’']
+
+        # Create word_tokens from resume
+        tokens = nltk.tokenize.word_tokenize(raw_text)
+    
+        # remove the stop words, string.punctuation, and user_defined_punctuation
+        tokens = [w for w in tokens if w not in stop_words and w not in punctuation and w not in user_defined_punctuation]
+    
+        # Lemmatize text
+        wordnet_lemmatizer = WordNetLemmatizer()
+        tokens = [wordnet_lemmatizer.lemmatize(word).lower().strip() for word in tokens]
+
+        # Return processed text joined together
+        return " ".join([i for i in tokens])
+    
+    # Create features from processed tokens
+    def word_count_features(self, processed_text):
+        
+        # Create empty list to store tfidf vectors depending on ngram_range
+        tfidf_vector_list = []
+
+        #Create empty list to store word counts from Bag-of-words
+        count_vector_list =[]
+        
+        # Create df list to hold dataframes
+        df_list = []
+
+        # Conduct TFIDF Vectorization and Count Vectorization using different combinations of uniqrams, bigrams, and trigrams
+        for i in range(1,4):
+            tfidf_vec = TfidfVectorizer(ngram_range = (i,i))
+            count_vec = CountVectorizer(ngram_range = (i,i))
+
+            ### TFIDF ###
+            # TFIDF - apply fit_transform with the processed text as an iterable to satisfy argument reqs
+            tfidf_result = tfidf_vec.fit_transform([processed_text])
+
+            # Store results to tfidf_vector_list if needed later
+            tfidf_vector_list.append(tfidf_result) 
+
+            # Convert from vector to matrix
+            tfidf_matrix = tfidf_vec.fit_transform([processed_text]).todense()
+
+            # Create feature index from matrix by getting words
+            tfidf_feat_idx = tfidf_matrix[0,:].nonzero()[1]
+
+            # Create zipped words to scores
+            tfidf_scores = zip([tfidf_vec.get_feature_names()[i] for i in tfidf_feat_idx], [tfidf_matrix[0,x] for x in tfidf_feat_idx])
+
+            # Create dictionary from scores
+            tfidf_dict = dict(tfidf_scores)
+
+            # Put into dataframe
+            tfidf_df = pd.DataFrame(tfidf_dict.items(), columns = ['Phrase','Tf-idf Score'])
+
+            ### Bag of words ###
+            # Count - apply fit_transform with the processed text as an iterable to satisfy argument reqs
+            count_result = count_vec.fit_transform([processed_text])
+
+             # Store results to count_vector_list if needed later
+            count_vector_list.append(count_result) 
+
+            # Convert from vector to matrix
+            count_matrix = count_vec.fit_transform([processed_text]).todense()
+
+            # Create feature index from matrix by getting words
+            count_feat_idx = count_matrix[0,:].nonzero()[1]
+
+            # Create zipped words to scores
+            count_scores = zip([count_vec.get_feature_names()[i] for i in count_feat_idx], [count_matrix[0,x] for x in count_feat_idx])
+
+            # Create dictionary from scores
+            count_dict = dict(count_scores)
+
+            # Put into dataframe
+            count_df = pd.DataFrame(count_dict.items(), columns = ['Phrase', 'Count'])
+
+            # Join dfs on the phrase
+            tfidf_df = tfidf_df.merge(count_df, left_on=['Phrase'], right_on =['Phrase'])
+
+            # Append to df list
+            df_list.append(tfidf_df)
+
+        # Return list of dataframes for Tf-idf and Bag-of-words
+        return df_list
+
+
+
+
+        
+
+
+
+
+    # Make cloud chunks from resume 
+    # Takes in the raw text form resume and the extracted list of attributes
+    def chunk_text(self, raw_text, attribute_dict):
+
+        # Replace • placeholder
+        
+        return raw_text, attribute_dict
