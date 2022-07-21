@@ -45,7 +45,7 @@ def main():
         with screen_content_holder.container():
 
             # First, Scrape Resume and Extract Text
-            with st.spinner("Processing resume to find matches.."):
+            with st.spinner("Processing resume to find matches..."):
                 # Load in job postings existing in data folder to a dataframe
                 if os.path.exists("data//postings//Job Postings.xlsx"):
                     jobs_df = pd.read_excel("data//postings//Job Postings.xlsx")
@@ -92,22 +92,34 @@ def main():
                 attribute_dict = {'Name':name,'Email':email,'Phone':phone,
                                 'Location':resume_location,'Skills':skills,'Education':education}
 
+                ### Build Word Count Features ###
                 # Create processed_text by tokening the raw resume text
                 processed_text = anlyz_txt.tokenize_text(raw_text)
 
-                # Build word count features and get similarity score from processed_text (Tf-idf and Bag-of-words)
+                ### Analyze word count features and get similarity score from processed_text (Tf-idf and Bag-of-words)
                 # Have to pass processed_text in as list as argument expects something iterable
                 # Specifying data type as resume
                 # Uploaded file = resume
                 # Since it is a resume, it returns the resume features
-                sim_results_df = anlyz_txt.build_word_count_features(data = [processed_text], jobs_df = jobs_df, data_type='resume', name = name)
+                word_sim_results_df = anlyz_txt.build_and_analyze_word_count_features(data = [processed_text], jobs_df = jobs_df, data_type='resume', name = name)
+
+                ### Build and Analyze Resume Features with Sentence Transformer ###
+                sent_trans_sim_df = anlyz_txt.analyze_with_transformer(resume_data = raw_text, jobs_df = jobs_df, data_type='resume')
 
                 # Display success message
                 st.success(':smile: Matches found in employer database')
-
-                # Display dataframe sorted by tf-idf in descending order
                 st.subheader('Best Matches for {}:'.format(name))
-                st.dataframe(sim_results_df.sort_values(by = ['Tf-idf Score'], ascending = False))
+
+                # Join dataframes
+                display_df = word_sim_results_df.merge(sent_trans_sim_df, left_on = ['Title'], right_on = ['Title'])
+
+                # Calculate average of tf-idf, BoW, and Sentence Transformer similarities
+                display_df['Average Score'] = display_df[['Tf-idf Score', 'BoW Score', 'Transformer Score']].mean(axis = 1)
+
+                # Display dataframe
+                st.dataframe(display_df.sort_values(by = ['Average Score'], ascending = False))
+               
+                #st.dataframe(sent_trans_df.sort_values(by = ['Transformer Score'], ascending = False))
 
     ######## ---- INITIALIZE SIDEBAR ---- ########
     # Sidebar Image
@@ -140,12 +152,6 @@ def main():
             # Show error message
             screen_content_holder.error('Job data does not exist. Update job postings')
 
-            # Show job postings
-        #     st.subheader('Current Job Postings in Database:')
-        #     st.dataframe(jobs_df)
-            
-        # else:
-        #     st.error('Job data does not exist. Update job postings')
             
     # Create Update Job Postings Button
     if st.sidebar.button('Update Job Postings'):
@@ -155,20 +161,27 @@ def main():
 
         # Return list of posts as a dataframe and list of URLs to go scrape the web
         with screen_content_holder.container():
-            with st.spinner("Updating Job Postings.."):
+            with st.spinner("Updating Job Postings..."):
 
                 # Save URLs from employer postings function to be processed
                 url_list = get_employer_postings()
+
+            with st.spinner("Scraping job data from URLs..."):
 
                 # CB 7.16 - Only scraping indeed postings as part of this project. Update to be more comprehensive in future
                 # Processes and tokenizes URL postings
                 jobs_df = process_URL_postings(url_list)
 
-                # Build word count features from processed_text (Tf-idf and Bag-of-words)
+            with st.spinner("Building Word Count Features..."):
+                ### Build word count features from processed_text (Tf-idf and Bag-of-words) ###
                 # Passing in dataframe as data
                 # Specifying data type as jobs
                 # Don't have to specify uploaded_file
-                anlyz_txt.build_word_count_features(data = jobs_df, data_type='jobs')
+                anlyz_txt.build_and_analyze_word_count_features(data = jobs_df, data_type='jobs')
+
+            with st.spinner("Creating Semantic Embeddings..."):
+                ### Sentence Transformer for jobs ###
+                anlyz_txt.analyze_with_transformer(resume_data = "", jobs_df = jobs_df, data_type='jobs')
 
                 # Display success message
                 st.success("✔️ Job data has been updated successfully")
@@ -176,7 +189,7 @@ def main():
                 # When processing is finished, show job postings with tokenized text
                 st.subheader('Current Job Postings in Database: {}'.format(len(jobs_df)))
                 st.dataframe(jobs_df.loc[:,['Title']].sort_values(by = ['Title'], ascending = True))
-        
+
 # Execute main function
 if __name__ == "__main__":
     main()

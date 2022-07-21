@@ -10,3 +10,4 @@ docx2txt
 textract
 nltk
 pathlib
+sentence_transformers
