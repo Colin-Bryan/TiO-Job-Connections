@@ -11,7 +11,6 @@ from datetime import datetime
 from pathlib import Path
 import pickle
 import shutil
-import json
 
 # .pdf processing
 from pdfminer.high_level import extract_text
@@ -28,6 +27,9 @@ import textract
 # NLP processing libraries and modules
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.metrics.pairwise import linear_kernel, cosine_similarity
+
+from sentence_transformers import SentenceTransformer, util
+
 import nltk
 from nltk.stem import WordNetLemmatizer
 nltk.download('punkt')
@@ -217,10 +219,9 @@ class AnalyzeText():
         stop_words = set(nltk.corpus.stopwords.words('english'))
         punctuation = string.punctuation
 
-        # Load in user defined stop words
-        json_stop = open('data//stop_words//custom stop words.json')
-        json_data = json.load(json_stop)
-        user_defined_stop_words = json_data["stop_words"]
+        # Load in user defined stop words and save to list
+        user_defined_stop_words = pd.read_csv('data//stop_words//custom stop words.csv')
+        user_defined_stop_words = list(user_defined_stop_words)
 
         # Define punctuation to remove in addition to string.punctuation
         user_defined_punctuation = ['–','•','’']
@@ -241,11 +242,11 @@ class AnalyzeText():
     
     # Create features from processed tokens (takes data, type of data being passed - default is resume, and name - default is blank)
     # CB 7.17 - Might have to strip out into 2 separate functions
-    def build_word_count_features(self, data, jobs_df = 'Placeholder', data_type='resume', name = 'Pete Fagan'):
+    def build_and_analyze_word_count_features(self, data, jobs_df = 'Placeholder', data_type='resume', name = 'Pete Fagan'):
 
         # If data being passed in for jobs, assign data as the processed_text column
         if data_type == 'jobs':
-            
+
             # Assign data to the processed_text column that was already put through the pipeline
             data = data['processed_text']
 
@@ -278,6 +279,7 @@ class AnalyzeText():
             path = Path('data//word_count_matrices/count_matrix.pkl')
             with path.open('wb') as fp:
                 pickle.dump(count_postings_result, fp)
+            
                 
         # Else, process resumes
         else: 
@@ -352,6 +354,65 @@ class AnalyzeText():
 
             # Return dataframe
             return similarity_results_df
+    
+    def analyze_with_transformer(self, resume_data, jobs_df, data_type): 
+        # Load in MiniLM-L6-v2 transformer model pre-trained
+        sent_trans_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+
+        # Analyze jobs
+        if data_type == 'jobs':
+
+            # Create embeddings for text from full_text already created (don't need to tokenize/remove stop words/lemmatize)
+            job_transformed = jobs_df['full_text'].values.tolist()
+            embeddings = [sent_trans_model.encode(job) for job in job_transformed]
+
+            # Save embeddings as pickle file at specified path to use in application
+            path = Path('data//embeddings//job_embeddings.pkl')
+            with path.open('wb') as fp:
+                pickle.dump(embeddings, fp)
+
+            # Save embeddings as pickle file at specified path to archive
+            path = Path('data//embeddings//archive//job_embeddings_{}.pkl'.format(datetime.now().strftime("%Y-%m-%d")))
+            with path.open('wb') as fp:
+                pickle.dump(embeddings, fp)
+
+        # Analyze resume
+        else:
+
+            # Initialize lists to hold values
+            title_list = []
+            sent_trans_sim_list = []
+
+            # Load job embeddings from pickle
+            with open('data//embeddings//job_embeddings.pkl', 'rb') as file:
+                job_embeddings = pickle.load(file)
+
+            # Pass in raw_text from resume ("data") into list and assign to variable
+            resume_to_list = [resume_data]
+            resume_embeddings = sent_trans_model.encode(resume_to_list) #for resume in resume_transformed
+
+            # Calculate Embedding Similarity
+            # Loop through each job_embedding
+            for i, vector in enumerate(job_embeddings):
+
+                # Get the job posting title
+                title = jobs_df.iloc[i,0]
+                
+                # Get the resume to job posting similarity score (have to detach values and convert to np floats)
+                sent_trans_cosine_similarity = util.cos_sim(resume_embeddings,vector)[0][0].detach().numpy()
+
+                # Append variables to list and loop again
+                title_list.append(title)
+                sent_trans_sim_list.append(float(sent_trans_cosine_similarity))
+            
+            #Create dictionary of Job Titles to Cosine Similarity Scores
+            sent_trans_dict = dict(zip(title_list, sent_trans_sim_list))
+
+            # Put dicts into dataframe
+            sent_trans_df = pd.DataFrame(sent_trans_dict.items(), columns = ['Title','Transformer Score'])
+
+            #Return dataframe
+            return sent_trans_df
 
 # Reference only then remove
 # CB 7.20 - commenting out v1 of build_word_count_features as this will be replaced by vectorizer above
