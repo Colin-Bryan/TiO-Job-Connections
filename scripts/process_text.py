@@ -11,6 +11,8 @@ from datetime import datetime
 from pathlib import Path
 import pickle
 import shutil
+import json
+import io
 
 # .pdf processing
 from pdfminer.high_level import extract_text
@@ -240,15 +242,12 @@ class AnalyzeText():
         # Return processed text joined together
         return " ".join([i for i in tokens])
     
-    # Create features from processed tokens (takes data, type of data being passed - default is resume, and name - default is blank)
+    # Create features from processed tokens (takes data, type of data being passed - default is resume)
     # CB 7.17 - Might have to strip out into 2 separate functions
-    def build_and_analyze_word_count_features(self, data, jobs_df = 'Placeholder', data_type='resume', name = 'Pete Fagan'):
+    def build_and_analyze_word_count_features(self, data, jobs_df = 'Placeholder', data_type='resume'):
 
-        # If data being passed in for jobs, assign data as the processed_text column
+        # If data being passed in for jobs, build features
         if data_type == 'jobs':
-
-            # Assign data to the processed_text column that was already put through the pipeline
-            data = data['processed_text']
 
             # Conduct TFIDF Vectorization and Count Vectorization using uniqrams and bigrams
             tfidf_vec = TfidfVectorizer(ngram_range = (1,2))
@@ -317,7 +316,7 @@ class AnalyzeText():
             for i, vector in enumerate(tfidf_postings_result):
 
                 # Get the job posting title
-                title = jobs_df.iloc[i,0]
+                title = jobs_df.loc[i,'Title']
                 # Get the resume to job posting similarity score
                 tfidf_cosine_similarity = cosine_similarity(tfidf_resume_result,vector)[0][0]
 
@@ -350,12 +349,18 @@ class AnalyzeText():
             count_df = pd.DataFrame(count_dict.items(), columns = ['Title', 'BoW Score'])
 
             #Join dfs on "Title"
-            similarity_results_df = tfidf_df.merge(count_df, left_on=['Title'], right_on =['Title'])
+            results_df = tfidf_df.merge(count_df, left_on=['Title'], right_on =['Title'])
+
+            # Create left dataframe to display results with Employer, Title, and URL
+            left_df = jobs_df.loc[:,['Employer', 'Title', 'URL']]
+
+            # Create final returned df
+            returned_df = left_df.merge(results_df, left_on=['Title'], right_on =['Title'])
 
             # Return dataframe
-            return similarity_results_df
+            return returned_df
     
-    def analyze_with_transformer(self, resume_data, jobs_df, data_type): 
+    def analyze_with_transformer(self, resume_data, jobs_df, data_type, name = 'Pete Fagan'): 
         # Load in MiniLM-L6-v2 transformer model pre-trained
         sent_trans_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
 
@@ -396,7 +401,7 @@ class AnalyzeText():
             for i, vector in enumerate(job_embeddings):
 
                 # Get the job posting title
-                title = jobs_df.iloc[i,0]
+                title = jobs_df.loc[i,'Title']
                 
                 # Get the resume to job posting similarity score (have to detach values and convert to np floats)
                 sent_trans_cosine_similarity = util.cos_sim(resume_embeddings,vector)[0][0].detach().numpy()
@@ -414,419 +419,24 @@ class AnalyzeText():
             #Return dataframe
             return sent_trans_df
 
-# Reference only then remove
-# CB 7.20 - commenting out v1 of build_word_count_features as this will be replaced by vectorizer above
-    #   Create features from processed tokens (takes data, type of data being passed - default is resume, and name - default is blank)
-    
-
-    #def build_word_count_features(self, data, data_type='resume', uploaded_file = 'Pete Fagan'):
-
-    #     # Create df list to hold dataframes created during analysis
-    #     df_list = []
-
-    #     # If data being passed in for jobs, assign data as the processed_text column
-    #     if data_type == 'jobs':
-
-    #         # Remove previous features to prepare for updating postings
-    #         for path in Path("data//postings//features").glob("**/*"):
-
-    #             # If the path is a file, remove
-    #             if path.is_file():
-    #                 path.unlink()
-
-    #         # Create master list to hold all dfs
-    #         master_df_list = []
-
-    #         # Get the list of job titles
-    #         title_list = list(data['Title'])
-
-    #         # Assign data to the processed_text column that was already put through the pipeline
-    #         data = list(data['processed_text'])
-            
-    #         # Loop through each tokenized post
-    #         for text in data:
-    #             # Loop through the range to get unigrams, bigrams, and trigrams
-    #             for i in range(1,4):
-                    
-    #                 ### Initalize vector for tfidf and count
-    #                 tfidf_vec = TfidfVectorizer(ngram_range = (i,i))
-    #                 count_vec = CountVectorizer(ngram_range = (i,i))
-
-    #                 ### Tf-idf ###
-    #                 # Run fit_transform on the data (pass in as list)
-    #                 tfidf_result = tfidf_vec.fit_transform([text])
-
-    #                 # Map words to scores
-    #                 tfidf_dict = dict(zip(tfidf_vec.get_feature_names(), tfidf_result.toarray()[0]))
-
-    #                 # Put into dataframe
-    #                 tfidf_df = pd.DataFrame(tfidf_dict.items(), columns = ['Phrase','Tf-idf Score'])
-
-    #                 ### Bag of words ###
-    #                 # Count - apply fit_transform to the data
-    #                 count_result = count_vec.fit_transform([text])
-
-    #                 # Map words to scores
-    #                 count_dict = dict(zip(tfidf_vec.get_feature_names(), count_result.toarray()[0]))
-
-    #                 # Put into dataframe
-    #                 count_df = pd.DataFrame(count_dict.items(), columns = ['Phrase', 'Count'])
-
-    #                 ### Join dfs on "Phrase" ###
-    #                 tfidf_df = tfidf_df.merge(count_df, left_on=['Phrase'], right_on =['Phrase'])
-
-    #                 # Append to df list
-    #                 df_list.append(tfidf_df)
-                
-    #             # After processing a job post, append results to master_list
-    #             master_df_list.append(df_list)
-    #             # Clear df_list to prepare for next iteration
-    #             df_list = []
-            
-    #         ### Write to Excel
-    #         # Initialize title_counter
-    #         title_counter = 0
-
-    #         # Loop through each post in the master_df_list
-    #         for post_list in master_df_list:
-
-    #             # Initialize appended_df for writing to excel for each post
-    #             appended_df = pd.DataFrame()
-
-    #             # Loop through each dataframe for the post. Need to iterate through a range for modulo
-    #             for i in range(len(post_list)):
-    #                 df = post_list[i]
-
-    #                 # If first dataframe for the post, set appended_df to the unigram dataframe
-    #                 if i % 3 == 0:
-    #                     # Create type column for analysis and set to Unigram
-    #                     df['Type'] = 'Unigram'
-    #                     appended_df = df
-                        
-    #                 # If second dataframe for the post, append onto appended_df
-    #                 elif i % 3 == 1:
-    #                     # Create type column for analysis and set to Bigram
-    #                     df['Type'] = 'Bigram'
-
-    #                     # Concatenate dataframes
-    #                     appended_df = pd.concat([appended_df, df])
-
-    #                 elif i % 3 == 2:
-    #                     # Create type column for analysis and set to Trigram
-    #                     df['Type'] = 'Trigram'
-
-    #                     # Concatenate dataframes
-    #                     appended_df = pd.concat([appended_df, df])
-                    
-    #                     # Sort appended df before writing to Excel 
-    #                     appended_df = appended_df.sort_values(by=['Tf-idf Score'], ascending = False)
-
-    #                     # Write the appended df for the job post to Excel
-    #                     # CB 7.17 - Might need some sort of ID to link the postings to the features in case there are duplicates
-    #                     # CB 7.17 - Would involve update the other write to excel code in employer_postings.py
-
-    #                     # Need to replace slashes with "_" to save features. Remember this when reading and matching titles
-    #                     appended_df.to_excel(
-    #                         'data//postings//archive/archived_features//{}_{}.xlsx'.format(
-    #                             title_list[title_counter].replace('/','_'),
-    #                             datetime.now().strftime("%Y-%m-%d")),
-    #                             index=False
-    #                         )
-
-    #                      # Need to replace slashes with "_" to save features. Remember this when reading and matching titles
-    #                     appended_df.to_excel(
-    #                         'data//postings//features//{}.xlsx'.format(title_list[title_counter].replace('/','_')),
-    #                         index=False
-    #                         )
-                
-    #             # Iterate title counter for next job post
-    #             title_counter = title_counter + 1
-
-    #         # Empty return
-    #         return
-
-
-    #     # Else, process resumes
-    #     else: 
-
-    #         # Conduct TFIDF Vectorization and Count Vectorization using different combinations of uniqrams, bigrams, and trigrams
-    #         for i in range(1,4):
-    #             tfidf_vec = TfidfVectorizer(ngram_range = (i,i))
-    #             count_vec = CountVectorizer(ngram_range = (i,i))
-
-    #             ### TFIDF ###
-    #             # TFIDF - apply fit_transform to the data
-    #             tfidf_result = tfidf_vec.fit_transform(data)
-
-    #             # Map words to scores
-    #             tfidf_dict = dict(zip(tfidf_vec.get_feature_names(), tfidf_result.toarray()[0]))
-
-    #             # # Put into dataframe
-    #             tfidf_df = pd.DataFrame(tfidf_dict.items(), columns = ['Phrase','Tf-idf Score'])
-
-    #             ### Bag of words ###
-    #             # Count - apply fit_transform to the data
-    #             count_result = count_vec.fit_transform(data)
-
-    #             # Map words to scores
-    #             count_dict = dict(zip(tfidf_vec.get_feature_names(), count_result.toarray()[0]))
-
-    #             # Put into dataframe
-    #             count_df = pd.DataFrame(count_dict.items(), columns = ['Phrase', 'Count'])
-
-    #             ### Join dfs on "Phrase" ###
-    #             tfidf_df = tfidf_df.merge(count_df, left_on=['Phrase'], right_on =['Phrase'])
-
-    #             # Append to df list
-    #             df_list.append(tfidf_df)
-
-    #         ### Write to Excel
-    #         # Initialize appended_df for writing to excel
-    #         appended_df = pd.DataFrame()
-
-    #         # Loop through each dataframe for the post. Need to iterate through a range for modulo
-    #         for i in range(len(df_list)):
-    #             df = df_list[i]
-
-    #             # If first dataframe for the post, set appended_df to the unigram dataframe
-    #             if i % 3 == 0:
-    #                 # Create type column for analysis and set to Unigram
-    #                 df['Type'] = 'Unigram'
-    #                 appended_df = df
-                    
-    #             # If second dataframe for the post, append onto appended_df
-    #             elif i % 3 == 1:
-    #                 # Create type column for analysis and set to Bigram
-    #                 df['Type'] = 'Bigram'
-
-    #                 # Concatenate dataframes
-    #                 appended_df = pd.concat([appended_df, df])
-
-    #             elif i % 3 == 2:
-    #                 # Create type column for analysis and set to Trigram
-    #                 df['Type'] = 'Trigram'
-
-    #                 # Concatenate dataframes
-    #                 appended_df = pd.concat([appended_df, df])
-                
-    #                 # Sort appended df before writing to Excel 
-    #                 appended_df = appended_df.sort_values(by=['Tf-idf Score'], ascending = False)
-
-    #                 # Write the appended df for the resume to Excel
-    #                 # Need to replace slashes with "_" to save features. Remember this when reading and matching titles
-    #                 appended_df.to_excel(
-    #                     'data//resumes//features//{}.xlsx'.format(
-    #                         uploaded_file.name.replace('/','_')),
-    #                         index=False
-    #                     )
-                        
-    #         # Return features as dataframe
-    #         return appended_df
-
-# CB 7.20 - commenting out v1 of build_word_count_features as this will be replaced by vectorizer above
-    #   Create features from processed tokens (takes data, type of data being passed - default is resume, and name - default is blank)
-    
-
-    #def build_word_count_features(self, data, data_type='resume', uploaded_file = 'Pete Fagan'):
-
-    #     # Create df list to hold dataframes created during analysis
-    #     df_list = []
-
-    #     # If data being passed in for jobs, assign data as the processed_text column
-    #     if data_type == 'jobs':
-
-    #         # Remove previous features to prepare for updating postings
-    #         for path in Path("data//postings//features").glob("**/*"):
-
-    #             # If the path is a file, remove
-    #             if path.is_file():
-    #                 path.unlink()
-
-    #         # Create master list to hold all dfs
-    #         master_df_list = []
-
-    #         # Get the list of job titles
-    #         title_list = list(data['Title'])
-
-    #         # Assign data to the processed_text column that was already put through the pipeline
-    #         data = list(data['processed_text'])
-            
-    #         # Loop through each tokenized post
-    #         for text in data:
-    #             # Loop through the range to get unigrams, bigrams, and trigrams
-    #             for i in range(1,4):
-                    
-    #                 ### Initalize vector for tfidf and count
-    #                 tfidf_vec = TfidfVectorizer(ngram_range = (i,i))
-    #                 count_vec = CountVectorizer(ngram_range = (i,i))
-
-    #                 ### Tf-idf ###
-    #                 # Run fit_transform on the data (pass in as list)
-    #                 tfidf_result = tfidf_vec.fit_transform([text])
-
-    #                 # Map words to scores
-    #                 tfidf_dict = dict(zip(tfidf_vec.get_feature_names(), tfidf_result.toarray()[0]))
-
-    #                 # Put into dataframe
-    #                 tfidf_df = pd.DataFrame(tfidf_dict.items(), columns = ['Phrase','Tf-idf Score'])
-
-    #                 ### Bag of words ###
-    #                 # Count - apply fit_transform to the data
-    #                 count_result = count_vec.fit_transform([text])
-
-    #                 # Map words to scores
-    #                 count_dict = dict(zip(tfidf_vec.get_feature_names(), count_result.toarray()[0]))
-
-    #                 # Put into dataframe
-    #                 count_df = pd.DataFrame(count_dict.items(), columns = ['Phrase', 'Count'])
-
-    #                 ### Join dfs on "Phrase" ###
-    #                 tfidf_df = tfidf_df.merge(count_df, left_on=['Phrase'], right_on =['Phrase'])
-
-    #                 # Append to df list
-    #                 df_list.append(tfidf_df)
-                
-    #             # After processing a job post, append results to master_list
-    #             master_df_list.append(df_list)
-    #             # Clear df_list to prepare for next iteration
-    #             df_list = []
-            
-    #         ### Write to Excel
-    #         # Initialize title_counter
-    #         title_counter = 0
-
-    #         # Loop through each post in the master_df_list
-    #         for post_list in master_df_list:
-
-    #             # Initialize appended_df for writing to excel for each post
-    #             appended_df = pd.DataFrame()
-
-    #             # Loop through each dataframe for the post. Need to iterate through a range for modulo
-    #             for i in range(len(post_list)):
-    #                 df = post_list[i]
-
-    #                 # If first dataframe for the post, set appended_df to the unigram dataframe
-    #                 if i % 3 == 0:
-    #                     # Create type column for analysis and set to Unigram
-    #                     df['Type'] = 'Unigram'
-    #                     appended_df = df
-                        
-    #                 # If second dataframe for the post, append onto appended_df
-    #                 elif i % 3 == 1:
-    #                     # Create type column for analysis and set to Bigram
-    #                     df['Type'] = 'Bigram'
-
-    #                     # Concatenate dataframes
-    #                     appended_df = pd.concat([appended_df, df])
-
-    #                 elif i % 3 == 2:
-    #                     # Create type column for analysis and set to Trigram
-    #                     df['Type'] = 'Trigram'
-
-    #                     # Concatenate dataframes
-    #                     appended_df = pd.concat([appended_df, df])
-                    
-    #                     # Sort appended df before writing to Excel 
-    #                     appended_df = appended_df.sort_values(by=['Tf-idf Score'], ascending = False)
-
-    #                     # Write the appended df for the job post to Excel
-    #                     # CB 7.17 - Might need some sort of ID to link the postings to the features in case there are duplicates
-    #                     # CB 7.17 - Would involve update the other write to excel code in employer_postings.py
-
-    #                     # Need to replace slashes with "_" to save features. Remember this when reading and matching titles
-    #                     appended_df.to_excel(
-    #                         'data//postings//archive/archived_features//{}_{}.xlsx'.format(
-    #                             title_list[title_counter].replace('/','_'),
-    #                             datetime.now().strftime("%Y-%m-%d")),
-    #                             index=False
-    #                         )
-
-    #                      # Need to replace slashes with "_" to save features. Remember this when reading and matching titles
-    #                     appended_df.to_excel(
-    #                         'data//postings//features//{}.xlsx'.format(title_list[title_counter].replace('/','_')),
-    #                         index=False
-    #                         )
-                
-    #             # Iterate title counter for next job post
-    #             title_counter = title_counter + 1
-
-    #         # Empty return
-    #         return
-
-
-    #     # Else, process resumes
-    #     else: 
-
-    #         # Conduct TFIDF Vectorization and Count Vectorization using different combinations of uniqrams, bigrams, and trigrams
-    #         for i in range(1,4):
-    #             tfidf_vec = TfidfVectorizer(ngram_range = (i,i))
-    #             count_vec = CountVectorizer(ngram_range = (i,i))
-
-    #             ### TFIDF ###
-    #             # TFIDF - apply fit_transform to the data
-    #             tfidf_result = tfidf_vec.fit_transform(data)
-
-    #             # Map words to scores
-    #             tfidf_dict = dict(zip(tfidf_vec.get_feature_names(), tfidf_result.toarray()[0]))
-
-    #             # # Put into dataframe
-    #             tfidf_df = pd.DataFrame(tfidf_dict.items(), columns = ['Phrase','Tf-idf Score'])
-
-    #             ### Bag of words ###
-    #             # Count - apply fit_transform to the data
-    #             count_result = count_vec.fit_transform(data)
-
-    #             # Map words to scores
-    #             count_dict = dict(zip(tfidf_vec.get_feature_names(), count_result.toarray()[0]))
-
-    #             # Put into dataframe
-    #             count_df = pd.DataFrame(count_dict.items(), columns = ['Phrase', 'Count'])
-
-    #             ### Join dfs on "Phrase" ###
-    #             tfidf_df = tfidf_df.merge(count_df, left_on=['Phrase'], right_on =['Phrase'])
-
-    #             # Append to df list
-    #             df_list.append(tfidf_df)
-
-    #         ### Write to Excel
-    #         # Initialize appended_df for writing to excel
-    #         appended_df = pd.DataFrame()
-
-    #         # Loop through each dataframe for the post. Need to iterate through a range for modulo
-    #         for i in range(len(df_list)):
-    #             df = df_list[i]
-
-    #             # If first dataframe for the post, set appended_df to the unigram dataframe
-    #             if i % 3 == 0:
-    #                 # Create type column for analysis and set to Unigram
-    #                 df['Type'] = 'Unigram'
-    #                 appended_df = df
-                    
-    #             # If second dataframe for the post, append onto appended_df
-    #             elif i % 3 == 1:
-    #                 # Create type column for analysis and set to Bigram
-    #                 df['Type'] = 'Bigram'
-
-    #                 # Concatenate dataframes
-    #                 appended_df = pd.concat([appended_df, df])
-
-    #             elif i % 3 == 2:
-    #                 # Create type column for analysis and set to Trigram
-    #                 df['Type'] = 'Trigram'
-
-    #                 # Concatenate dataframes
-    #                 appended_df = pd.concat([appended_df, df])
-                
-    #                 # Sort appended df before writing to Excel 
-    #                 appended_df = appended_df.sort_values(by=['Tf-idf Score'], ascending = False)
-
-    #                 # Write the appended df for the resume to Excel
-    #                 # Need to replace slashes with "_" to save features. Remember this when reading and matching titles
-    #                 appended_df.to_excel(
-    #                     'data//resumes//features//{}.xlsx'.format(
-    #                         uploaded_file.name.replace('/','_')),
-    #                         index=False
-    #                     )
-                        
-    #         # Return features as dataframe
-    #         return appended_df
+    def output_to_JSON(self, name, final_df):
+
+
+        json_list = []
+        # Loop through df
+        for i in range(len(final_df)):
+            json_list.append(
+                {"Posting": {"Employer":final_df.loc[i,"Employer"],
+                            "Title":final_df.loc[i,"Title"],
+                            "URL":final_df.loc[i,"URL"],
+                            "Score":final_df.loc[i,"Average Score"]}}
+            )
+        
+        print(json_list)
+
+        # # Write JSON file
+        # with io.open('outputs\\{}_output.json'.format(name), 'w', encoding='utf8') as outfile:
+        #     str_ = json.dumps(data,
+        #                     indent=4, sort_keys=True,
+        #                     separators=(',', ': '), ensure_ascii=False)
+        #     outfile.write(to_unicode(str_))

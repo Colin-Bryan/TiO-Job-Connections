@@ -3,16 +3,17 @@ import pandas as pd
 from bs4 import BeautifulSoup
 import requests
 from datetime import datetime
+import os
 
 # Import functions from other scripts
 from scripts.process_text import AnalyzeText
 
 # Create employer postings dataframe and return URLs
 def get_employer_postings():
-    
+
     # Specify path of employer postings:
     # CB 7.16 - In future, read this from hosted db. For now, Excel file will suffice
-    path = "data\TiO - Employer Partner Job Postings.xlsx"  
+    path = "data\\TiO - Employer Partner Job Postings.xlsx"  
 
     # Read file path into dataframe
     postings_df = pd.read_excel(path)
@@ -23,14 +24,14 @@ def get_employer_postings():
     # Drop duplicate URLs
     postings_df.drop_duplicates(subset = ['Opening URL'], inplace = True)
     
-    # Save URLs into a list
-    url_list = list(postings_df['Opening URL'])
+    return postings_df
 
-    return url_list
 
 def tokenize_postings(df):
+    # Load in AnalyzeText class
     anlyz_txt = AnalyzeText()
 
+    # Create processed_text column to store tokenized text
     df['processed_text'] = df['full_text'].apply(lambda x: anlyz_txt.tokenize_text(x))
 
     # Output job postings to Excel for archiving
@@ -45,22 +46,14 @@ def tokenize_postings(df):
     # Return process dataframe
     return df
 
-def process_URL_postings(url_list):
-    
-    ## Get different urls
-    # Create list of indeed_postings onl
-    indeed_url_list = []
-    linkedin_url_list = []
-    
-    # Get list of posts from Indeed
-    for url in url_list:
-        if 'indeed.com' in url:
-            indeed_url_list.append(url)
+#def process_URL_postings(url_list):
+def process_URL_postings(postings_df):
 
-    # Get list of posts from LinkedIn
-    for url in url_list:
-        if 'linkedin.com' in url:
-            linkedin_url_list.append(url)
+    # Define filter criteria for postings_df
+    url_filter_criteria = ['indeed.com']
+
+    # Create sub dataframe to process jobs
+    sub_postings_df = postings_df[postings_df['Opening URL'].str.contains('|'.join(url_filter_criteria))]
     
     # Create lists to store data while looping
     job_titles = []
@@ -68,7 +61,7 @@ def process_URL_postings(url_list):
     job_descriptions = []
 
     # Get data from each Indeed URL:    
-    for url in indeed_url_list:
+    for url in list(sub_postings_df['Opening URL']):
         
         # Get html data from the URL
         html_data = requests.get(url).text
@@ -98,6 +91,7 @@ def process_URL_postings(url_list):
             job_locations.append(location)
             
         except:
+            # Put catchall string in fields if error
             job_titles.append('Could not find title')
             job_locations.append('Could not find location')
         
@@ -111,90 +105,20 @@ def process_URL_postings(url_list):
             
         
     # Package up everything into dataframe by creating dictionary first
-    indeed_dict = {'Title':job_titles, 'Location':job_locations, 'Description':job_descriptions, 'URL':indeed_url_list}
-
+    scraped_dict = {'Employer':list(sub_postings_df.Employer),'Title':job_titles, 'Location':job_locations, 
+            'Description':job_descriptions, 'URL':list(sub_postings_df['Opening URL'])}
+   
     # Create dataframe
-    indeed_df = pd.DataFrame(indeed_dict)
+    scraped_df = pd.DataFrame(scraped_dict)
     
     # Drop rows that didn't return results
-    indeed_df = indeed_df[indeed_df['Description'] != 'Could not find description'].reset_index(drop=True)
+    scraped_df = scraped_df[scraped_df['Description'] != 'Could not find description'].reset_index(drop=True)
 
-    # Add "Source" column
-    indeed_df['Source'] = 'Indeed'
+    # Add "Source" column - defaulting Indeed
+    scraped_df['Source'] = 'Indeed'
 
     # Combine job title, job location, and job description into full_text column to use as input for model
-    indeed_df['full_text'] = indeed_df.apply(lambda x: ' '.join([x['Title'],x['Location'],x['Description']]),axis=1)
+    scraped_df['full_text'] = scraped_df.apply(lambda x: ' '.join([x['Title'],x['Location'],x['Description']]),axis=1)
 
     # Tokenize postings and return processed dataframe
-    return tokenize_postings(indeed_df)
-
-    # # Re-initialize lists to store data while looping
-    # job_titles = []
-    # job_locations = []
-    # job_descriptions = []
-
-    # # Get data from each Indeed URL:    
-    # for url in linkedin_url_list:
-        
-    #     # Get html data from the URL
-    #     html_data = requests.get(url).text
-        
-    #     # Pass into parser
-    #     soup = BeautifulSoup(html_data, 'html.parser')
-        
-    #     # Save job titles and locations into list
-    #     try:
-    #         # Get page title
-    #         page_title = soup.title.get_text(strip = True)
-    #         print(page_title)
-            
-    #         # Split page title to get job title and location
-    #         if ')' in page_title:
-    #             job_title = page_title.split(')')[1]  
-    #             job_title = job_title.split('|')[0]
-    #         else:
-    #             job_title = job_title.split('|')[0]
-
-
-            
-    #         # Append title and location to lists
-    #         job_titles.append(job_title)
-    # #         job_locations.append(location)
-            
-    #     except:
-    #         job_titles.append('Could not find title')
-    # #         job_locations.append('Could not find location')
-        
-    # #     # Save job descriptions into list
-    # #     try:
-    # #         job_descriptions.append(
-    # #             soup.select_one("#jobDescriptionText").get_text(strip=True, separator="\n")
-    # #         )
-    # #     except:
-    # #         job_descriptions.append('Could not find description')
-            
-        
-    # # Package up everything into dataframe by creating dictionary first
-    # linkedin_dict = {'Title':job_titles, 'URL':linkedin_url_list}
-
-    # # Create dataframe
-    # linkedin_df = pd.DataFrame(linkedin_dict)
-
-    # # Add "Source" column
-    # linkedin_df['Source'] = 'LinkedIn'
-
-    # print(linkedin_df)
-    
-    # # Drop rows that didn't return results
-    # #linkedin_df = linkedin_df[linkedin_df['Description'] != 'Could not find description'].reset_index(drop=True)
-
-    # Combine job title, job location, and job description into full_text column to use as input for model
-    #linkedin_df['full_text'] = linkedin_df.apply(lambda x: ' '.join([x['Title'],x['Location'],x['Description']]),axis=1)
-
-    # # Tokenize postings and return processed dataframe
-    # return tokenize_postings(linkedin_df)
-
-
-
-
-# Will need functions to concatenate all dataframes into one job postings file
+    return tokenize_postings(scraped_df)
