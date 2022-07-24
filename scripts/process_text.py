@@ -46,12 +46,51 @@ nltk.download('vader_lexicon')
 
 #Create class for extracting text
 class ExtractResumeText():
+    '''
+    A class to extract text from uploaded resumes.
+
+    ...
+
+    Attributes
+    ----------
+    None
+
+    Methods
+    -------
+    get_resume_text(self, document):
+        Extracts the raw text from the resume depending on file format.
+
+    get_name(self, raw_text):
+        Gets the job seeker's name from the resume.
+
+    get_phone(self, raw_text):
+        Gets the job seeker's phone number from the resume.
+
+    get_location(self, raw_text, name):
+        Gets the job seeker's location from the resume.
+
+    get_skills(self, raw_text):
+        Gets the job seeker's skills from the resume by comparing to the Skills Database from API Layer.
+    '''
+    
     # Initialize class
     def __init__(self):
+        '''
+        No attributes to initialize.
+        '''
         return
 
     # Extract text from resume
     def get_resume_text(self, document):
+        '''
+        Returns the raw text from the resume depending on document type.
+
+        Parameters:
+            document (file): The uploaded resume.
+        
+        Returns:
+            raw_text (str): The resume text in string format.
+        '''
         
         # Use try-excepts to process .docx first
         try: 
@@ -62,9 +101,6 @@ class ExtractResumeText():
         # CB 7.17 Note: pdf scraping is not exactly a 1:1 to docx scraping so doc type might impact results currently
         except:
             try:
-                # Use pdfminer to get resume text from pdf
-                # CB 7.16 - Can be improved to clean up formatting
-
                 # Initialize device from pdfminer to get resume text from pdf
                 device = TextConverter(PDFResourceManager(), StringIO, laparams=LAParams())
                 
@@ -72,73 +108,116 @@ class ExtractResumeText():
                 interpreter = PDFPageInterpreter(PDFResourceManager(), device)
                 file_pages = PDFPage.get_pages(document)
                 
+                # Get raw text
                 raw_text = extract_text(document)
             except:
                 # CB 7.16 - Commenting out because we will not be accepting .doc
                 # Use textract's process function to get resume text from .doc
                 #raw_text = textract.process(document)       
-                pass
+                st.error('Text cannot be extracted from the resume. Please review the file and try again.')
 
         return raw_text.replace('\t', ' ')
     
-    # CB 7.16 - Extract name - need to fix intelligence. Come back and clean up
     def get_name(self, raw_text):
+        '''
+        Returns the first line of the resume as the person's name.
 
-        # for sent in nltk.sent_tokenize(raw_text):
-        #     for chunk in nltk.ne_chunk(nltk.pos_tag(nltk.word_tokenize(sent))):
-        #         if hasattr(chunk, 'label') and chunk.label() == 'PERSON':
-        #             person_name =' '.join(chunk_leave[0] for chunk_leave in chunk.leaves())
+        Parameters:
+            raw_text (str): The raw text from the resume.
         
-        # Placeholder to just get the first line from the resume and assume it's the first name
+        Returns:
+            raw_text.split('\n')[0] (str): The first line of the resume.
+        '''
+
+        # Placeholder to just get the first line from the resume and assume it's the first name.
+        # CB 7.24 - Will be cleaned up in v2
         return raw_text.split('\n')[0]
 
-    # Extract email
-    # CB 7.17 - Add validation 
-    def get_email(self, raw_text):
-        
-        # Use regular expression to find email
-        #email_reg = re.compile(r'[a-z0-9\.\-+_]+@[a-z0-9\.\-+_]+\.[a-z]+')
-        email_reg = re.compile(r'\S+@\S+')
 
+    def get_email(self, raw_text):
+        '''
+        Returns the job seeker's email address in the resume if it exists.
+
+        Parameters:
+            raw_text (str): The raw text from the resume.
+        
+        Returns:
+            Either the first email address found in the resume of a string that says that the email could not be located."
+        '''
         try:
+            # Use regular expression to find email
+            email_reg = re.compile(r'\S+@\S+')
+
             # Return first email found for the person
             return re.findall(email_reg, raw_text)[0]
+
         except:
             return 'Could not find email'
 
-    # Extract phone number
-    # CB 7.17 - Add validation 
     def get_phone(self, raw_text):
-        
-        # Use regular expression to find phone
-        phone_reg = re.compile(r'[\+\(]?[1-9][0-9 .\-\(\)]{8,}[0-9]')
-        
-        # Return first phone number found for the person
-        return re.findall(phone_reg, raw_text)[0]
+        '''
+        Returns the job seeker's phone number in the resume if it exists.
 
-    # Get the candidate's location. CB 7.17 - This is very hacky, need to replace functionality for getting location
-    # CB 7.17 - Add validation 
+        Parameters:
+            raw_text (str): The raw text from the resume.
+        
+        Returns:
+            Either the first phone number found in the resume of a string that says that the phone number could not be located."
+        '''
+        try: 
+            # Use regular expression to find phone
+            phone_reg = re.compile(r'[\+\(]?[1-9][0-9 .\-\(\)]{8,}[0-9]')
+
+            # Return first phone number found for the person
+            return re.findall(phone_reg, raw_text)[0]
+        
+        except:
+            return 'Could not find phone number'
+
     def get_location(self, raw_text, name):
+        '''
+        Returns the job seeker's location in the resume if it exists.
 
-        # Use regular expression to find location
-        location_reg = re.search(r'([^\d]+)?(\d{5})?', raw_text).group(0)
+        Parameters:
+            raw_text (str): The raw text from the resume.
         
-        # CB 7.16 - Come back and clean up. Don't have a good way to replace trailing punctuation yet
-        location_reg = location_reg.replace('•','')
+        Returns:
+            Either the job seeker's location or a string that says that the location could not be located."
+        '''
 
-        # CB 7.17 - Replace name that is coming back in match and strip out white spaces
-        location_reg = location_reg.replace(name,'').strip()
+        try: 
+            # Use regular expression to find location
+            location_reg = re.search(r'([^\d]+)?(\d{5})?', raw_text).group(0)
+            
+            ### CB 7.16 - Come back and clean up the following ###
+            # Don't have a good way to replace trailing punctuation yet
+            location_reg = location_reg.replace('•','')
+            #Replace name that is coming back in match and strip out white spaces
+            location_reg = location_reg.replace(name,'').strip()
 
-        # Return location if it ends with a digit 
-        if location_reg[-1].isdigit():
-            return location_reg
-        
-        # Else split on a new line and return the first part
-        else:
-            return location_reg.split('\n')[0]
+            # Return location if it ends with a digit 
+            if location_reg[-1].isdigit():
+                return location_reg
+            
+            # Else split on a new line and return the first part
+            else:
+                return location_reg.split('\n')[0]
 
-    # CB 7.16 - Disable as we have exceeded API limit. Clean up code ot make it mine
+        except:
+            return 'Could not find location'
+            
+
     def get_skills(self, raw_text):
+        '''
+        Returns the job seeker's skills in the resume by comparing to the Skills database from API Layer. 
+        Boilerplate code from 'https://blog.apilayer.com/build-your-own-resume-parser-using-python-and-nlp/'
+
+        Parameters:
+            raw_text (str): The raw text from the resume.
+        
+        Returns:
+            found_skills (list): A list of found skills from the Skills Database from API Layer.
+        '''
         stop_words = set(nltk.corpus.stopwords.words('english'))
         word_tokens = nltk.tokenize.word_tokenize(raw_text)
     
@@ -150,7 +229,6 @@ class ExtractResumeText():
     
         # generate bigrams and trigrams (such as artificial intelligence)
         bigrams_trigrams = list(map(' '.join, nltk.everygrams(filtered_tokens, 2, 3)))
-        return bigrams_trigrams
     
         # we create a set to keep the results in.
         found_skills = set()
@@ -167,55 +245,49 @@ class ExtractResumeText():
     
         return found_skills
 
-    # CB 7.16 - Disable as this is not a clean solution. Clean up code to make it mine
-    def get_education(self, raw_text):
-        pass
-        # RESERVED_WORDS = [
-        #     'school',
-        #     'college',
-        #     'university',
-        #     'academy',
-        #     'faculty',
-        #     'institute',
-        #     'faculdades',
-        #     'Schola',
-        #     'schule',
-        #     'lise',
-        #     'lyceum',
-        #     'lycee',
-        #     'polytechnic',
-        #     'kolej',
-        #     'ünivers',
-        #     'okul',
-        # ]
 
-        # organizations = []
- 
-        # # first get all the organization names using nltk
-        # for sent in nltk.sent_tokenize(raw_text):
-        #     for chunk in nltk.ne_chunk(nltk.pos_tag(nltk.word_tokenize(sent))):
-        #         if hasattr(chunk, 'label') and chunk.label() == 'ORGANIZATION':
-        #             organizations.append(' '.join(c[0] for c in chunk.leaves()))
-    
-        # # we search for each bigram and trigram for reserved words
-        # # (college, university etc...)
-        # education = set()
-        # for org in organizations:
-        #     for word in RESERVED_WORDS:
-        #         if org.lower().find(word):
-        #             education.add(org)
-    
-        # return education
-
-
-#Create class for text analysis
 class AnalyzeText():
+    '''
+    A class to analyze text and process text in modeling.
+
+    ...
+
+    Attributes
+    ----------
+    None
+
+    Methods
+    -------
+    tokenize_text(self, raw_text):
+        Tokenizes raw text for use in modeling.
+
+    build_and_analyze_word_count_features(self, data, jobs_df = 'Placeholder', data_type='resume'):
+        Builds and analyzes text for word count modeling.
+
+    analyze_with_transformer(self, resume_data, jobs_df, data_type, name = 'Pete Fagan'): 
+        Analyzes text using transformer models.
+    
+    output_to_JSON(self, name, final_postings_df):
+        Outputs a DataFrame to JSON format.
+    '''
     # Initialize class
     def __init__(self):
+        '''
+        No attributes to initialize.
+        '''
         return
     
     # Tokenize, remove stop words and punctuation, lemmatize
     def tokenize_text(self, raw_text):
+        '''
+        Returns tokenized text that is lemmatized with stop words and punctuation removed.
+
+        Parameters:
+            raw_text (str): The raw text from the resume or job postings.
+        
+        Returns:
+            A string of tokens joined together by spaces.
+        '''
 
         # Create stop words and punctuation
         stop_words = set(nltk.corpus.stopwords.words('english'))
@@ -245,7 +317,21 @@ class AnalyzeText():
     # Create features from processed tokens (takes data, type of data being passed - default is resume)
     # CB 7.17 - Might have to strip out into 2 separate functions
     def build_and_analyze_word_count_features(self, data, jobs_df = 'Placeholder', data_type='resume'):
+        '''
+        Builds features from either resumes or job postings and performs word count modeling.
 
+        Parameters:
+            data : An argument for the data to be modeled. This is treated differently depending on the data_type argument.
+            jobs_df : An argument that accepts the jobs_df DataFrame if it is needed (not required for resumes).
+            data_type (str) : A string specifiying if a 'resume' or 'jobs' are being processed (default = resume).
+        
+        Returns:
+            If a resume is being processed, a DataFrame of cosine_similarity scores from the job seeker's resume
+            to each job posting is returned for Tf-idf and Bag-of-words modeling methods.
+
+            If job postings are being processed, Tf-idf and Count vectorizers, plus resulting matrices, are saved as 
+            .pkl files for use in resume comparison. Nothing is returned.
+        '''
         # If data being passed in for jobs, build features
         if data_type == 'jobs':
 
@@ -361,6 +447,22 @@ class AnalyzeText():
             return returned_df
     
     def analyze_with_transformer(self, resume_data, jobs_df, data_type, name = 'Pete Fagan'): 
+        '''
+        Analyzes text from either resumes or job postings and performs transformer modeling.
+
+        Parameters:
+            resume_data (str): The raw text form the resume is passed in for resume processing. This is not required for job posting modeling.
+            jobs_df (DataFrame): The jobs_df DataFrame.
+            data_type (str) : A string specifiying if a 'resume' or 'jobs' are being processed (default = resume).
+            name (str): The name of the job seeker. Pete Fagan is defaulted because it is not required for jobs.
+
+        Returns:
+            If a resume is being processed, a DataFrame of cosine_similarity scores from the job seeker's resume
+            to each job posting is returned for transformer modeling methods.
+
+            If job postings are being processed, transformer embeddings are saved as a
+            .pkl file for use in resume comparison. Nothing is returned.
+        '''
         # Load in MiniLM-L6-v2 transformer model pre-trained
         sent_trans_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
 
@@ -419,24 +521,37 @@ class AnalyzeText():
             #Return dataframe
             return sent_trans_df
 
-    def output_to_JSON(self, name, final_df):
+    def output_to_JSON(self, name, final_postings_df):
+        '''
+        Outputs the final DataFrame of similarity scores to job postings for the user to JSON format 
+        as a list of JSON objects.
 
+        Parameters:
+            name (str): The name of the job seeker.
+            final_postings_df (DataFrame): The final DataFrame containing Tf-idf, Bag-of-words, and Transformer similarity scores
+                                            for each job posting to the job seeker's resume.
 
-        json_list = []
-        # Loop through df
-        for i in range(len(final_df)):
-            json_list.append(
-                {"Posting": {"Employer":final_df.loc[i,"Employer"],
-                            "Title":final_df.loc[i,"Title"],
-                            "URL":final_df.loc[i,"URL"],
-                            "Score":final_df.loc[i,"Average Score"]}}
-            )
+        Returns:
+            Nothing. A JSON file is outputted for the job seeker.
+        '''
         
-        print(json_list)
+        # Initialize list to store JSON objects
+        json_list = []
 
-        # # Write JSON file
-        # with io.open('outputs\\{}_output.json'.format(name), 'w', encoding='utf8') as outfile:
-        #     str_ = json.dumps(data,
-        #                     indent=4, sort_keys=True,
-        #                     separators=(',', ': '), ensure_ascii=False)
-        #     outfile.write(to_unicode(str_))
+        # Loop through final postings dataframe for the user and put data in dictionary format
+        for i in range(len(final_postings_df)):
+
+            # Append each dictionary to the list
+            json_list.append(
+                {"Employer":final_postings_df.loc[i,"Employer"].replace('\xa0',''),
+                "Title":final_postings_df.loc[i,"Title"],
+                "URL":final_postings_df.loc[i,"URL"],
+                "Score":final_postings_df.loc[i,"Average Score"]}
+            )
+
+        # Write JSON file withthe list
+        with io.open('data\\outputs\\{}_output.json'.format(name), 'w', encoding='utf8') as outfile:
+            json_data = json.dumps(json_list,
+                            indent=4, sort_keys=True,
+                            separators=(',', ': '), ensure_ascii=False)
+            outfile.write(json_data)
