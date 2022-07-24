@@ -83,15 +83,10 @@ def main():
                 #skills = ext_txt.get_skills(raw_text)
                 skills = ''
 
-                # CB 7.16 - Commenting out due to inaccuracy
-                # Get person's education
-                #education = ext_txt.get_education(raw_text)
-                education = ''
-
                 # Append all extracted attributes to a dictionary
                 # CB 7.24 - Placeholder for v2 usage
                 attribute_dict = {'Name':name,'Email':email,'Phone':phone,
-                                'Location':resume_location,'Skills':skills,'Education':education}
+                                'Location':resume_location,'Skills':skills}
 
                 ### Build Word Count Features ###
                 # Create processed_text by tokening the raw resume text
