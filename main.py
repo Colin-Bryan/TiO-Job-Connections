@@ -46,7 +46,7 @@ def main():
     # If file is uploaded and form is submitted, process resume
     elif submitted and uploaded_file is not None:
 
-        # Hide form
+        # Hide resume form
         resume_form_holder.empty()
 
         # First, Scrape Resume and Extract Text
@@ -65,38 +65,31 @@ def main():
 
                 # Extract text from resume
                 raw_text = ext_txt.get_resume_text(uploaded_file)
-                #st.write(raw_text)
 
                 # Get person's name
                 name = ext_txt.get_name(raw_text)
-                #st.subheader(name)
 
                 # Get person's email
                 email = ext_txt.get_email(raw_text)
-                #st.write(email)
 
                 # Get person's phone number
                 phone = ext_txt.get_phone(raw_text)
-                #st.write(phone)
 
                 # Get person's location
-                # CB 7.17 - Update arguments when cleaned up
                 resume_location = ext_txt.get_location(raw_text, name)
-                #st.write(resume_location)
 
                 # CB 7.16 - Commenting out due to API limit
                 # Get person's skills
                 #skills = ext_txt.get_skills(raw_text)
-                #st.write(skills)
                 skills = ''
 
                 # CB 7.16 - Commenting out due to inaccuracy
                 # Get person's education
                 #education = ext_txt.get_education(raw_text)
-                #st.write(education)
                 education = ''
 
                 # Append all extracted attributes to a dictionary
+                # CB 7.24 - Placeholder for v2 usage
                 attribute_dict = {'Name':name,'Email':email,'Phone':phone,
                                 'Location':resume_location,'Skills':skills,'Education':education}
 
@@ -105,9 +98,6 @@ def main():
                 processed_text = anlyz_txt.tokenize_text(raw_text)
 
                 ### Analyze word count features and get similarity score from processed_text (Tf-idf and Bag-of-words)
-                # Have to pass processed_text in as list as argument expects something iterable
-                # Specifying data type as resume
-                # Uploaded file = resume
                 # Since it is a resume, it returns the resume features
                 word_sim_results_df = anlyz_txt.build_and_analyze_word_count_features(data = [processed_text], jobs_df = jobs_df, data_type='resume')
 
@@ -115,13 +105,13 @@ def main():
                 sent_trans_sim_df = anlyz_txt.analyze_with_transformer(resume_data = raw_text, jobs_df = jobs_df, data_type='resume', name = name)
 
                 # Display success message
-                st.success(':smile: Matches found in employer database')
+                st.success(':smile: Matches found in employer database. Output file was created successfully.')
                 st.subheader('Top 10 Matches for {}:'.format(name))
 
-                # Join dataframes
+                # Join word count and transformer dataframes
                 display_df = word_sim_results_df.merge(sent_trans_sim_df, left_on = ['Title'], right_on = ['Title'])
 
-                # Calculate average of tf-idf, BoW, and Sentence Transformer similarities
+                # Calculate average score of Tf-idf, BoW, and Sentence Transformer similarities
                 display_df['Average Score'] = display_df[['Tf-idf Score', 'BoW Score', 'Transformer Score']].mean(axis = 1)
 
                 # Display dataframe with top 10 matches and select columns
@@ -140,13 +130,14 @@ def main():
     # Create Sidebar Title
     st.sidebar.title("Admin Settings")            
 
-    # Create Upload Resumes Button
+    # Create Upload Resume Button
     if st.sidebar.button('Upload New Resume'):
+        # Hide screen content until resume is processed
         screen_content_holder.empty()
 
     # Create View Job Postings Button
     if st.sidebar.button('View Job Postings'):
-        # Hide upload form
+        # Hide resume upload form
         resume_form_holder.empty()
 
         # Load in job postings existing in data folder to a dataframe
@@ -155,10 +146,10 @@ def main():
 
             # Replace holder element with container to show current postings
             with screen_content_holder.container():
-                # Display current postings in database count
+                # Display count of current postings in database count
                 st.subheader('Current Job Postings in Database: {}'.format(len(jobs_df)))
 
-                # Display dataframe
+                # Display dataframe of postings
                 st.dataframe(jobs_df.loc[:,['Employer','Title']].sort_values(by = ['Employer'], ascending = True))
 
         else:
@@ -168,7 +159,7 @@ def main():
     # Create Update Job Postings Button
     if st.sidebar.button('Update Job Postings'):
 
-        # # Hide upload form
+        # Hide resume upload form
         resume_form_holder.empty()
 
         # Return list of posts as a dataframe and list of URLs to go scrape the web
@@ -189,7 +180,6 @@ def main():
                 ### Build word count features from processed_text (Tf-idf and Bag-of-words) ###
                 # Passing in dataframe as data
                 # Specifying data type as jobs
-                # Don't have to specify uploaded_file
                 anlyz_txt.build_and_analyze_word_count_features(data = jobs_df, data_type='jobs')
 
             with st.spinner("Creating Semantic Embeddings..."):
