@@ -10,6 +10,15 @@ from scripts.process_text import AnalyzeText
 
 # Create employer postings dataframe and return URLs
 def get_employer_postings():
+    '''
+    Reads the employer partner job postings data in Excel and returns a DataFrame of relevant postings to parse.
+
+        Parameters:
+            none
+        
+        Returns:
+            postings_df (DataFrame): A DataFrame of relevant job postings to parse.
+    '''
 
     # Specify path of employer postings:
     # CB 7.16 - In future, read this from hosted db. For now, Excel file will suffice
@@ -27,29 +36,19 @@ def get_employer_postings():
     return postings_df
 
 
-def tokenize_postings(df):
-    # Load in AnalyzeText class
-    anlyz_txt = AnalyzeText()
-
-    # Create processed_text column to store tokenized text
-    df['processed_text'] = df['full_text'].apply(lambda x: anlyz_txt.tokenize_text(x))
-
-    # Output job postings to Excel for archiving
-    df.to_excel('data//postings//archive//archived_postings//Job Postings_{}.xlsx'.format(
-        datetime.now().strftime("%Y-%m-%d")),
-        index=False
-        )
-
-    # Create most recent job postings for processing
-    df.to_excel('data//postings//Job Postings.xlsx',index=False)
-
-    # Return process dataframe
-    return df
-
-#def process_URL_postings(url_list):
 def process_URL_postings(postings_df):
+    '''
+    Defines the criteria for job postings to scrape and gathers relevant data for downstream modeling.
+
+    Parameters:
+        postings_df (DataFrame): A DataFrame of job postings to process.
+    
+    Returns:
+        scraped_df (DataFrame): A DataFrame of the job postings with an additional tokenized column of text for modeling.
+    '''
 
     # Define filter criteria for postings_df
+    # CB 7.24 - Indeed only for v1
     url_filter_criteria = ['indeed.com']
 
     # Create sub dataframe to process jobs
@@ -66,7 +65,7 @@ def process_URL_postings(postings_df):
         # Get html data from the URL
         html_data = requests.get(url).text
         
-        # Pass into parser
+        # Pass into BeautifulSoup parser
         soup = BeautifulSoup(html_data, 'html.parser')
         
         # Save job titles and locations into list
@@ -122,3 +121,32 @@ def process_URL_postings(postings_df):
 
     # Tokenize postings and return processed dataframe
     return tokenize_postings(scraped_df)
+
+def tokenize_postings(df):
+    '''
+    Alters the DataFrame of relevant job postings and adds a column with tokenized text.
+
+    Parameters:
+        df (DataFrame): A dataframe of job postings to read and tokeneize specific columns.
+    
+    Returns:
+        df (DataFrame): The original dataframe with an additional column "processed_text" that contains
+                        tokenized text.
+    '''
+    # Load in AnalyzeText class
+    anlyz_txt = AnalyzeText()
+
+    # Create processed_text column to store tokenized text by using tokenize_text function
+    df['processed_text'] = df['full_text'].apply(lambda x: anlyz_txt.tokenize_text(x))
+
+    # Output job postings to Excel for archiving
+    df.to_excel('data//postings//archive//archived_postings//Job Postings_{}.xlsx'.format(
+        datetime.now().strftime("%Y-%m-%d")),
+        index=False
+        )
+
+    # Create most recent job postings for processing
+    df.to_excel('data//postings//Job Postings.xlsx',index=False)
+
+    # Return processed dataframe
+    return df
