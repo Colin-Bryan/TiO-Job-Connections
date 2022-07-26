@@ -340,8 +340,8 @@ class AnalyzeText():
             count_vec = CountVectorizer(ngram_range = (1,2))
 
             # Apply fit_transform to data from vectorizers to train them
-            tfidf_postings_result = tfidf_vec.fit_transform(data)
-            count_postings_result = count_vec.fit_transform(data)
+            tfidf_postings_result = tfidf_vec.fit_transform(data['processed_text'])
+            count_postings_result = count_vec.fit_transform(data['processed_text'])
 
             ### Save Tf-idf files ###
             # Save tfidf vectorizer to pickle file at specified path
@@ -364,8 +364,10 @@ class AnalyzeText():
             path = Path('data//word_count_matrices/count_matrix.pkl')
             with path.open('wb') as fp:
                 pickle.dump(count_postings_result, fp)
-            
-                
+
+            # Print statement for validation 
+            print('After building word count features for jobs, the shape of the vectors are: {} (Tf-idf) and {} (BoW)'.format(tfidf_postings_result.shape, count_postings_result.shape))
+        
         # Else, process resumes
         else: 
             
@@ -443,6 +445,8 @@ class AnalyzeText():
             # Create final returned df
             returned_df = left_df.merge(results_df, left_on=['Title'], right_on =['Title'])
 
+            print('After processing resume, Word Count dataframe returned with shape {}'.format(returned_df.shape))
+
             # Return dataframe
             return returned_df
     
@@ -483,6 +487,8 @@ class AnalyzeText():
             with path.open('wb') as fp:
                 pickle.dump(embeddings, fp)
 
+            print('Job descriptions processed with sentence transformer')
+
         # Analyze resume
         else:
 
@@ -517,6 +523,8 @@ class AnalyzeText():
 
             # Put dicts into dataframe
             sent_trans_df = pd.DataFrame(sent_trans_dict.items(), columns = ['Title','Transformer Score'])
+
+            print('Sentence Transformer DataFrame returned with shape {}'.format(sent_trans_df.shape))
 
             #Return dataframe
             return sent_trans_df
@@ -555,3 +563,5 @@ class AnalyzeText():
                             indent=4, sort_keys=True,
                             separators=(',', ': '), ensure_ascii=False)
             outfile.write(json_data)
+        
+        print('JSON file outputted for {}'.format(name))
