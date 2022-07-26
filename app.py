@@ -202,7 +202,8 @@ def main():
 
 # Execute main function
 if __name__ == "__main__":
-    try:
-        main()
-    except:
-        st.error('An error occured. Please refresh the page and try again. If the problem persists, please contact support.')
+    main()
+    # try:
+    #     main()
+    # except:
+    #     st.error('An error occured. Please refresh the page and try again. If the problem persists, please contact support.')
