@@ -49,6 +49,8 @@ def main():
         # Hide resume form
         resume_form_holder.empty()
 
+        print('Resume processing start')
+
         # First, Scrape Resume and Extract Text
         with screen_content_holder.container():
 
@@ -117,10 +119,14 @@ def main():
                 # Output to JSON format for TiO processing
                 anlyz_txt.output_to_JSON(name, display_df)
                
-
+                print('Resume processing finished')
+                
     ######## ---- INITIALIZE SIDEBAR ---- ########
     # Sidebar Image
-    st.sidebar.image('data\\images\\TiO Logo.png')
+    try:
+        st.sidebar.image('https://storage.googleapis.com/tio-job-connections-static-images/TiO%20Logo.png')
+    except:
+        st.title('This is Opportunity')
 
     # Create Sidebar Title
     st.sidebar.title("Admin Settings")            
@@ -164,6 +170,8 @@ def main():
 
                 # Process employer postings
                 postings_df = get_employer_postings()
+                print('Job posting execution started')
+                print('After retrieving initial job postings, the shape of the DataFrame is {}'.format(postings_df.shape))
  
             with st.spinner("Scraping job data from URLs..."):
 
@@ -171,15 +179,17 @@ def main():
                 # Processes and tokenizes URL postings
                 jobs_df = process_URL_postings(postings_df)
 
+                print('After processing URLs, the shape of the DataFrame is {}'.format(jobs_df.shape))
+
             with st.spinner("Building Word Count Features..."):
                 ### Build word count features from processed_text (Tf-idf and Bag-of-words) ###
-                # Passing in dataframe as data
-                # Specifying data type as jobs
                 anlyz_txt.build_and_analyze_word_count_features(data = jobs_df, data_type='jobs')
 
             with st.spinner("Creating Semantic Embeddings..."):
                 ### Sentence Transformer for jobs ###
                 anlyz_txt.analyze_with_transformer(resume_data = "", jobs_df = jobs_df, data_type='jobs')
+                
+                print('Job posting execution finished')
 
                 # Display success message
                 st.success("✔️ Job data has been updated successfully")
@@ -192,4 +202,7 @@ def main():
 
 # Execute main function
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except:
+        st.error('An error occured. Please refresh the page and try again. If the problem persists, please contact support.')
