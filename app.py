@@ -16,7 +16,7 @@ from google.cloud import storage
 from io import BytesIO
 
 # Get service key for accessing Google Cloud (local only)
-#os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'ServiceKey_GoogleCloud.json'
+#credentials = os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'ServiceKey_GoogleCloud.json'
 
 # Create API client
 credentials = service_account.Credentials.from_service_account_info(
@@ -25,9 +25,6 @@ credentials = service_account.Credentials.from_service_account_info(
 
 # Initialize storage client from GCP
 storage_client = storage.Client(credentials=credentials)
-
-# Access gcp bucket
-gcp_storage_bucket = storage_client.get_bucket('tio-job-connections.appspot.com')
 
 
 def main():
@@ -81,6 +78,9 @@ def main():
 
                 try:
                     ## Load data with GCP
+                    # Access gcp bucket
+                    gcp_storage_bucket = storage_client.get_bucket('tio-job-connections.appspot.com')
+                    
                     # Get blob
                     blob = storage.blob.Blob('postings/Job Postings.xlsx', gcp_storage_bucket)
 
@@ -174,6 +174,9 @@ def main():
         
         # Load in job postings existing in GCP to a dataframe
         try:
+            # Access gcp bucket
+            gcp_storage_bucket = storage_client.get_bucket('tio-job-connections.appspot.com')
+                    
             # Get blob
             blob = storage.blob.Blob('postings/Job Postings.xlsx', gcp_storage_bucket)
 
@@ -206,6 +209,9 @@ def main():
         with screen_content_holder.container():
 
             with st.spinner("Updating Job Postings..."):
+
+                # Access gcp bucket
+                gcp_storage_bucket = storage_client.get_bucket('tio-job-connections.appspot.com')
 
                 # Process employer postings
                 postings_df = get_employer_postings(gcp_storage_bucket)
