@@ -26,6 +26,11 @@ from io import StringIO
 import docx2txt
 import textract
 
+### GCP Imports and Setup ###
+import google.auth
+from google.cloud import storage
+from io import BytesIO
+
 # NLP processing libraries and modules
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.metrics.pairwise import linear_kernel, cosine_similarity
@@ -278,53 +283,64 @@ class AnalyzeText():
         return
     
     # Tokenize, remove stop words and punctuation, lemmatize
-    def tokenize_text(self, raw_text):
+    def tokenize_text(self, raw_text, gcp_storage_bucket):
         '''
         Returns tokenized text that is lemmatized with stop words and punctuation removed.
 
         Parameters:
             raw_text (str): The raw text from the resume or job postings.
-        
+            gcp_storage_bucket (Object): The bucket where GCP data is stored for processing. 
+
         Returns:
             A string of tokens joined together by spaces.
         '''
 
-        # Create stop words and punctuation
+        ## Create stop words and punctuation
         stop_words = set(nltk.corpus.stopwords.words('english'))
         punctuation = string.punctuation
 
-        # Load in user defined stop words and save to list
-        user_defined_stop_words = pd.read_csv('data//stop_words//custom stop words.csv')
+        ## Load in user defined stop words and save to list
+        # Get blob
+        blob = storage.blob.Blob('stop_words/custom stop words.csv', gcp_storage_bucket)
+
+        # Get content
+        content = blob.download_as_string()
+
+        # Read into dataframe
+        user_defined_stop_words = pd.read_csv(BytesIO(content))
+
+        # Save to list
         user_defined_stop_words = list(user_defined_stop_words)
 
-        # Define punctuation to remove in addition to string.punctuation
+        ## Define punctuation to remove in addition to string.punctuation
         user_defined_punctuation = ['–','•','’']
 
-        # Create word_tokens from resume
+        ## Create word_tokens from resume
         tokens = nltk.tokenize.word_tokenize(raw_text)
     
-        # remove the stop words, string.punctuation, and user_defined_punctuation
+        ## Remove the stop words, string.punctuation, and user_defined_punctuation
         tokens = [w for w in tokens if w not in stop_words and w not in punctuation
                  and w not in user_defined_punctuation and w not in user_defined_stop_words]
     
-        # Lemmatize text
+        ## Lemmatize text
         wordnet_lemmatizer = WordNetLemmatizer()
         tokens = [wordnet_lemmatizer.lemmatize(word).lower().strip() for word in tokens]
 
-        # Return processed text joined together
+        ## Return processed text joined together
         return " ".join([i for i in tokens])
     
     # Create features from processed tokens (takes data, type of data being passed - default is resume)
     # CB 7.17 - Might have to strip out into 2 separate functions
-    def build_and_analyze_word_count_features(self, data, jobs_df = 'Placeholder', data_type='resume'):
+    def build_and_analyze_word_count_features(self, gcp_storage_bucket, data, jobs_df = 'Placeholder', data_type='resume'):
         '''
         Builds features from either resumes or job postings and performs word count modeling.
 
         Parameters:
+            gcp_storage_bucket (Object): The bucket where GCP data is stored for processing. 
             data : An argument for the data to be modeled. This is treated differently depending on the data_type argument.
             jobs_df : An argument that accepts the jobs_df DataFrame if it is needed (not required for resumes).
             data_type (str) : A string specifiying if a 'resume' or 'jobs' are being processed (default = resume).
-        
+
         Returns:
             If a resume is being processed, a DataFrame of cosine_similarity scores from the job seeker's resume
             to each job posting is returned for Tf-idf and Bag-of-words modeling methods.
@@ -345,26 +361,27 @@ class AnalyzeText():
 
             ### Save Tf-idf files ###
             # Save tfidf vectorizer to pickle file at specified path
-            path = Path('data//vectorizers/tfidf_vectorizer.pkl')
-            with path.open('wb') as fp:
-                pickle.dump(tfidf_vec, fp)
+            blob = storage.blob.Blob('vectorizers/tfidf_vectorizer.pkl', gcp_storage_bucket)
+            pickle_out = pickle.dumps(tfidf_vec)
+            blob.upload_from_string(pickle_out)
 
-            # Save tfidf result to pickle file at specified path
-            path = Path('data//word_count_matrices/tfidf_matrix.pkl')
-            with path.open('wb') as fp:
-                pickle.dump(tfidf_postings_result, fp)
+
+            # Save tfidf result to pickle file at specified path            
+            blob = storage.blob.Blob('word_count_matrices/tfidf_matrix.pkl', gcp_storage_bucket)
+            pickle_out = pickle.dumps(tfidf_postings_result)
+            blob.upload_from_string(pickle_out)
             
             ### Save Count files ###
-            # Save count vectorizer to pickle file at specified path
-            path = Path('data//vectorizers/count_vectorizer.pkl')
-            with path.open('wb') as fp:
-                pickle.dump(count_vec, fp)
+            # Save count vectorizer to pickle file at specified path           
+            blob = storage.blob.Blob('vectorizers/count_vectorizer.pkl', gcp_storage_bucket)
+            pickle_out = pickle.dumps(count_vec)
+            blob.upload_from_string(pickle_out)
 
             # Save count result to pickle file at specified path
-            path = Path('data//word_count_matrices/count_matrix.pkl')
-            with path.open('wb') as fp:
-                pickle.dump(count_postings_result, fp)
-
+            blob = storage.blob.Blob('word_count_matrices/count_matrix.pkl', gcp_storage_bucket)
+            pickle_out = pickle.dumps(count_postings_result)
+            blob.upload_from_string(pickle_out)
+            
             # Print statement for validation 
             print('After building word count features for jobs, the shape of the vectors are: {} (Tf-idf) and {} (BoW)'.format(tfidf_postings_result.shape, count_postings_result.shape))
         
@@ -373,21 +390,25 @@ class AnalyzeText():
             
             ### Load Tf-idf files ###
             # Load in pickle file for tfidf vectorizer
-            with open('data//vectorizers//tfidf_vectorizer.pkl', 'rb') as file:
-                tfidf_vec = pickle.load(file)
-
+            blob = storage.blob.Blob('vectorizers/tfidf_vectorizer.pkl', gcp_storage_bucket)
+            pickle_in = blob.download_as_string()
+            tfidf_vec = pickle.loads(pickle_in)
+            
             # Load in pickle file for pre-trained tfidf matrix
-            with open('data//word_count_matrices/tfidf_matrix.pkl', 'rb') as file:
-                tfidf_postings_result = pickle.load(file)
+            blob = storage.blob.Blob('word_count_matrices/tfidf_matrix.pkl', gcp_storage_bucket)
+            pickle_in = blob.download_as_string()
+            tfidf_postings_result = pickle.loads(pickle_in)
 
             ### Load Count files ###
             # Load in pickle file for count vectorizer
-            with open('data//vectorizers//count_vectorizer.pkl', 'rb') as file:
-                count_vec = pickle.load(file)
+            blob = storage.blob.Blob('vectorizers/count_vectorizer.pkl', gcp_storage_bucket)
+            pickle_in = blob.download_as_string()
+            count_vec = pickle.loads(pickle_in)
 
             # Load in pickle file for pre-trained count matrix
-            with open('data//word_count_matrices/count_matrix.pkl', 'rb') as file:
-                count_postings_result = pickle.load(file)
+            blob = storage.blob.Blob('word_count_matrices/count_matrix.pkl', gcp_storage_bucket)
+            pickle_in = blob.download_as_string()
+            count_postings_result = pickle.loads(pickle_in)
 
             # Apply transform to resume data from pre-trained vectorizers
             tfidf_resume_result = tfidf_vec.transform(data)
@@ -450,11 +471,12 @@ class AnalyzeText():
             # Return dataframe
             return returned_df
     
-    def analyze_with_transformer(self, resume_data, jobs_df, data_type, name = 'Pete Fagan'): 
+    def analyze_with_transformer(self, gcp_storage_bucket, resume_data, jobs_df, data_type, name = 'Pete Fagan'): 
         '''
         Analyzes text from either resumes or job postings and performs transformer modeling.
 
         Parameters:
+            gcp_storage_bucket (Object): The bucket where GCP data is stored for processing. 
             resume_data (str): The raw text form the resume is passed in for resume processing. This is not required for job posting modeling.
             jobs_df (DataFrame): The jobs_df DataFrame.
             data_type (str) : A string specifiying if a 'resume' or 'jobs' are being processed (default = resume).
@@ -478,14 +500,14 @@ class AnalyzeText():
             embeddings = [sent_trans_model.encode(job) for job in job_transformed]
 
             # Save embeddings as pickle file at specified path to use in application
-            path = Path('data//embeddings//job_embeddings.pkl')
-            with path.open('wb') as fp:
-                pickle.dump(embeddings, fp)
+            blob = storage.blob.Blob('embeddings/job_embeddings.pkl', gcp_storage_bucket)
+            pickle_out = pickle.dumps(embeddings)
+            blob.upload_from_string(pickle_out)
 
             # Save embeddings as pickle file at specified path to archive
-            path = Path('data//embeddings//archive//job_embeddings_{}.pkl'.format(datetime.now().strftime("%Y-%m-%d")))
-            with path.open('wb') as fp:
-                pickle.dump(embeddings, fp)
+            blob = storage.blob.Blob('embeddings/archive/job_embeddings_{}.pkl'.format(datetime.now().strftime("%Y-%m-%d")), gcp_storage_bucket)
+            pickle_out = pickle.dumps(embeddings)
+            blob.upload_from_string(pickle_out)
 
             print('Job descriptions processed with sentence transformer')
 
@@ -497,8 +519,9 @@ class AnalyzeText():
             sent_trans_sim_list = []
 
             # Load job embeddings from pickle
-            with open('data//embeddings//job_embeddings.pkl', 'rb') as file:
-                job_embeddings = pickle.load(file)
+            blob = storage.blob.Blob('embeddings/job_embeddings.pkl', gcp_storage_bucket)
+            pickle_in = blob.download_as_string()
+            job_embeddings = pickle.loads(pickle_in)
 
             # Pass in raw_text from resume ("data") into list and assign to variable
             resume_to_list = [resume_data]
@@ -529,7 +552,7 @@ class AnalyzeText():
             #Return dataframe
             return sent_trans_df
 
-    def output_to_JSON(self, name, final_postings_df):
+    def output_to_JSON(self, name, final_postings_df, gcp_storage_bucket):
         '''
         Outputs the final DataFrame of similarity scores to job postings for the user to JSON format 
         as a list of JSON objects.
@@ -538,6 +561,7 @@ class AnalyzeText():
             name (str): The name of the job seeker.
             final_postings_df (DataFrame): The final DataFrame containing Tf-idf, Bag-of-words, and Transformer similarity scores
                                             for each job posting to the job seeker's resume.
+            gcp_storage_bucket (Object): The bucket where GCP data is stored for processing. 
 
         Returns:
             Nothing. A JSON file is outputted for the job seeker.
@@ -557,11 +581,11 @@ class AnalyzeText():
                 "Score":final_postings_df.loc[i,"Average Score"]}
             )
 
-        # Write JSON file withthe list
-        with io.open('data\\outputs\\{}_output.json'.format(name), 'w', encoding='utf8') as outfile:
-            json_data = json.dumps(json_list,
+        # Write JSON file with the list to GCP
+        blob = storage.blob.Blob('outputs/{}_output.json'.format(name), gcp_storage_bucket)
+        blob.upload_from_string(data=json.dumps(json_list,
                             indent=4, sort_keys=True,
-                            separators=(',', ': '), ensure_ascii=False)
-            outfile.write(json_data)
+                            separators=(',', ': '), ensure_ascii=False), content_type = 'application/json')
+
         
         print('JSON file outputted for {}'.format(name))

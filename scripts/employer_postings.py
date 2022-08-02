@@ -8,24 +8,36 @@ import os
 # Import functions from other scripts
 from scripts.process_text import AnalyzeText
 
+### GCP Imports and Setup ###
+import google.auth
+from google.cloud import storage
+from io import BytesIO
+
 # Create employer postings dataframe and return URLs
-def get_employer_postings():
+def get_employer_postings(gcp_storage_bucket):
     '''
     Reads the employer partner job postings data in Excel and returns a DataFrame of relevant postings to parse.
 
         Parameters:
-            none
+            gcp_storage_bucket (Object): The bucket where GCP data is stored for processing 
         
         Returns:
             postings_df (DataFrame): A DataFrame of relevant job postings to parse.
     '''
+    
+    ## Load Employer Partner Job Postings data with GCP
+    try:
+        # Get blob
+        blob = storage.blob.Blob('TiO - Employer Partner Job Postings.xlsx', gcp_storage_bucket)
 
-    # Specify path of employer postings:
-    # CB 7.16 - In future, read this from hosted db. For now, Excel file will suffice
-    path = "data\\TiO - Employer Partner Job Postings.xlsx"  
+        # Get content
+        content = blob.download_as_string()
 
-    # Read file path into dataframe
-    postings_df = pd.read_excel(path)
+        # Read into dataframe
+        postings_df = pd.read_excel(BytesIO(content))
+    
+    except:
+        st.error('No jobs found in database. Please update postings')
 
     # Drop NaNs in URL
     postings_df.dropna(subset = ['Opening URL'], inplace = True)
@@ -35,12 +47,13 @@ def get_employer_postings():
     
     return postings_df
 
-def tokenize_postings(df):
+def tokenize_postings(df, gcp_storage_bucket):
     '''
     Alters the DataFrame of relevant job postings and adds a column with tokenized text.
 
     Parameters:
         df (DataFrame): A dataframe of job postings to read and tokeneize specific columns.
+        gcp_storage_bucket (Object): The bucket where GCP data is stored for processing 
     
     Returns:
         df (DataFrame): The original dataframe with an additional column "processed_text" that contains
@@ -50,26 +63,26 @@ def tokenize_postings(df):
     anlyz_txt = AnalyzeText()
 
     # Create processed_text column to store tokenized text by using tokenize_text function
-    df['processed_text'] = df['full_text'].apply(lambda x: anlyz_txt.tokenize_text(x))
+    df['processed_text'] = df['full_text'].apply(lambda x: anlyz_txt.tokenize_text(x, gcp_storage_bucket))
 
     # Output job postings to Excel for archiving
-    df.to_excel('data//postings//archive//archived_postings//Job Postings_{}.xlsx'.format(
+    df.to_excel('gs://tio-job-connections.appspot.com/postings/archive/archived_postings/Job Postings_{}.xlsx'.format(
         datetime.now().strftime("%Y-%m-%d")),
-        index=False
-        )
+        index=False)
 
     # Create most recent job postings for processing
-    df.to_excel('data//postings//Job Postings.xlsx',index=False)
+    df.to_excel('gs://tio-job-connections.appspot.com/postings/Job Postings.xlsx', index=False)
 
     # Return processed dataframe
     return df
 
-def process_URL_postings(postings_df):
+def process_URL_postings(postings_df, gcp_storage_bucket):
     '''
     Defines the criteria for job postings to scrape and gathers relevant data for downstream modeling.
 
     Parameters:
         postings_df (DataFrame): A DataFrame of job postings to process.
+        gcp_storage_bucket (Object): The bucket where GCP data is stored for processing 
     
     Returns:
         scraped_df (DataFrame): A DataFrame of the job postings with an additional tokenized column of text for modeling.
@@ -148,5 +161,5 @@ def process_URL_postings(postings_df):
     scraped_df['full_text'] = scraped_df.apply(lambda x: ' '.join([x['Title'],x['Location'],x['Description']]),axis=1)
 
     # Tokenize postings and return processed dataframe
-    return tokenize_postings(scraped_df)
+    return tokenize_postings(scraped_df, gcp_storage_bucket)
 
