@@ -9,6 +9,21 @@ import time
 from scripts.process_text import ExtractResumeText, AnalyzeText
 from scripts.employer_postings import get_employer_postings, process_URL_postings
 
+### GCP Imports and Setup ###
+import google.auth
+from google.cloud import storage
+from io import BytesIO
+
+# # Get service key for accessing Google Cloud (local only)
+# os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'ServiceKey_GoogleCloud.json'
+
+# Initialize storage client from GCP
+storage_client = storage.Client()
+
+# Access gcp bucket
+gcp_storage_bucket = storage_client.get_bucket('tio-job-connections.appspot.com')
+
+
 def main():
     '''
     Main function to run the Streamlit user interface.
@@ -57,9 +72,19 @@ def main():
             # First, Scrape Resume and Extract Text
             with st.spinner("Processing resume to find matches..."):
                 # Load in job postings existing in data folder to a dataframe
-                if os.path.exists("data//postings//Job Postings.xlsx"):
-                    jobs_df = pd.read_excel("data//postings//Job Postings.xlsx")
-                else:
+
+                try:
+                    ## Load data with GCP
+                    # Get blob
+                    blob = storage.blob.Blob('postings/Job Postings.xlsx', gcp_storage_bucket)
+
+                    # Get content
+                    content = blob.download_as_string()
+
+                    # Read into dataframe
+                    jobs_df = pd.read_excel(BytesIO(content))
+                
+                except:
                     st.error('No jobs found in database. Please update postings')
 
                 ##### Initialize ExtractResumeText class #####
@@ -92,14 +117,14 @@ def main():
 
                 ### Build Word Count Features ###
                 # Create processed_text by tokening the raw resume text
-                processed_text = anlyz_txt.tokenize_text(raw_text)
+                processed_text = anlyz_txt.tokenize_text(raw_text, gcp_storage_bucket)
 
                 ### Analyze word count features and get similarity score from processed_text (Tf-idf and Bag-of-words)
                 # Since it is a resume, it returns the resume features
-                word_sim_results_df = anlyz_txt.build_and_analyze_word_count_features(data = [processed_text], jobs_df = jobs_df, data_type='resume')
+                word_sim_results_df = anlyz_txt.build_and_analyze_word_count_features(gcp_storage_bucket, data = [processed_text], jobs_df = jobs_df, data_type='resume')
 
                 ### Build and Analyze Resume Features with Sentence Transformer ###
-                sent_trans_sim_df = anlyz_txt.analyze_with_transformer(resume_data = raw_text, jobs_df = jobs_df, data_type='resume', name = name)
+                sent_trans_sim_df = anlyz_txt.analyze_with_transformer(gcp_storage_bucket, resume_data = raw_text, jobs_df = jobs_df, data_type='resume', name = name)
 
                 # Display success message
                 st.success(':smile: Matches found in employer database. Output file was created successfully.')
@@ -117,7 +142,7 @@ def main():
                                             ].sort_values(by = ['Average Score'], ascending = False).reset_index(drop=True))
 
                 # Output to JSON format for TiO processing
-                anlyz_txt.output_to_JSON(name, display_df)
+                anlyz_txt.output_to_JSON(name, display_df, gcp_storage_bucket)
                
                 print('Resume processing finished')
                 
@@ -140,10 +165,17 @@ def main():
     if st.sidebar.button('View Job Postings'):
         # Hide resume upload form
         resume_form_holder.empty()
+        
+        # Load in job postings existing in GCP to a dataframe
+        try:
+            # Get blob
+            blob = storage.blob.Blob('postings/Job Postings.xlsx', gcp_storage_bucket)
 
-        # Load in job postings existing in data folder to a dataframe
-        if os.path.exists("data\\postings\\Job Postings.xlsx"):
-            jobs_df = pd.read_excel("data\\postings\\Job Postings.xlsx")
+            # Get content
+            content = blob.download_as_string()
+
+            # Read into dataframe
+            jobs_df = pd.read_excel(BytesIO(content))
 
             # Replace holder element with container to show current postings
             with screen_content_holder.container():
@@ -152,11 +184,12 @@ def main():
 
                 # Display dataframe of postings
                 st.dataframe(jobs_df.loc[:,['Employer','Title']].sort_values(by = ['Employer'], ascending = True))
+                
+        except:
+            # Throw error
+            st.error('No jobs found in database. Please update postings')
+        
 
-        else:
-            # Show error message
-            screen_content_holder.error('Job data does not exist. Update job postings')
-            
     # Create Update Job Postings Button
     if st.sidebar.button('Update Job Postings'):
 
@@ -169,7 +202,8 @@ def main():
             with st.spinner("Updating Job Postings..."):
 
                 # Process employer postings
-                postings_df = get_employer_postings()
+                postings_df = get_employer_postings(gcp_storage_bucket)
+
                 print('Job posting execution started')
                 print('After retrieving initial job postings, the shape of the DataFrame is {}'.format(postings_df.shape))
  
@@ -177,17 +211,17 @@ def main():
 
                 # CB 7.16 - Only scraping indeed postings as part of this project. Update to be more comprehensive in future
                 # Processes and tokenizes URL postings
-                jobs_df = process_URL_postings(postings_df)
+                jobs_df = process_URL_postings(postings_df, gcp_storage_bucket)
 
                 print('After processing URLs, the shape of the DataFrame is {}'.format(jobs_df.shape))
 
             with st.spinner("Building Word Count Features..."):
                 ### Build word count features from processed_text (Tf-idf and Bag-of-words) ###
-                anlyz_txt.build_and_analyze_word_count_features(data = jobs_df, data_type='jobs')
+                anlyz_txt.build_and_analyze_word_count_features(gcp_storage_bucket, data = jobs_df, data_type='jobs')
 
             with st.spinner("Creating Semantic Embeddings..."):
                 ### Sentence Transformer for jobs ###
-                anlyz_txt.analyze_with_transformer(resume_data = "", jobs_df = jobs_df, data_type='jobs')
+                anlyz_txt.analyze_with_transformer(gcp_storage_bucket, resume_data = "", jobs_df = jobs_df, data_type='jobs')
                 
                 print('Job posting execution finished')
 
