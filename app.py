@@ -11,14 +11,20 @@ from scripts.employer_postings import get_employer_postings, process_URL_posting
 
 ### GCP Imports and Setup ###
 import google.auth
+from google.oauth2 import service_account
 from google.cloud import storage
 from io import BytesIO
 
-# # Get service key for accessing Google Cloud (local only)
-# os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'ServiceKey_GoogleCloud.json'
+# Get service key for accessing Google Cloud (local only)
+#os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'ServiceKey_GoogleCloud.json'
+
+# Create API client
+credentials = service_account.Credentials.from_service_account_info(
+    st.secrets["gcp_service_account"]
+)
 
 # Initialize storage client from GCP
-storage_client = storage.Client()
+storage_client = storage.Client(credentials=credentials)
 
 # Access gcp bucket
 gcp_storage_bucket = storage_client.get_bucket('tio-job-connections.appspot.com')
