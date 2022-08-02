@@ -65,13 +65,13 @@ def tokenize_postings(df, gcp_storage_bucket):
     # Create processed_text column to store tokenized text by using tokenize_text function
     df['processed_text'] = df['full_text'].apply(lambda x: anlyz_txt.tokenize_text(x, gcp_storage_bucket))
 
-    # Output job postings to Excel for archiving
-    df.to_excel('gs://tio-job-connections.appspot.com/postings/archive/archived_postings/Job Postings_{}.xlsx'.format(
-        datetime.now().strftime("%Y-%m-%d")),
-        index=False)
+    # # Output job postings to CSV for archiving
+    blob = storage.blob.Blob('postings/archive/archived_postings/Job Postings_{}.csv'.format(datetime.now().strftime("%Y-%m-%d")), gcp_storage_bucket)
+    blob.upload_from_string(df.to_csv(index=False), 'text/csv')
 
     # Create most recent job postings for processing
-    df.to_excel('gs://tio-job-connections.appspot.com/postings/Job Postings.xlsx', index=False)
+    blob = storage.blob.Blob('postings/Job Postings.csv', gcp_storage_bucket)
+    blob.upload_from_string(df.to_csv(index=False), 'text/csv')
 
     # Return processed dataframe
     return df
