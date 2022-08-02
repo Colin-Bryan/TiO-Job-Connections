@@ -11,3 +11,4 @@ textract
 nltk
 pathlib
 sentence_transformers
+google-cloud-storage
