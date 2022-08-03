@@ -16,10 +16,13 @@ TiO provides professional development and economic advancement solutions for non
 
 Problem Statement
 -----------------
-* TiO's top initiative is a Job Placement Program, where we connect job seekers from our nonprofit partners to employer partners with open positions. 
-* Creating a high-quality Job Placement Program is a laborious task due to manual touchpoints and relationship building. 
-* Resumes and job postings need to be collected, documents need to be reviewed, connections need to be facilitated between job seekers and employers, and the list goes on and on.
-* TiO needs a way to efficiently make high-quality connections between job seekers and employers to be able to deliver more impactful results to our customers. 
+TiO's top initiative is a Job Placement Program, where we connect job seekers from our nonprofit partners to employer partners with open positions. Creating a high-quality Job Placement Program is a laborious task due to manual touchpoints and relationship building. 
+<br>
+<br>
+Resumes and job postings need to be collected, documents need to be reviewed, connections need to be facilitated between job seekers and employers, and the list goes on and on.
+<br>
+<br>
+TiO needs a way to efficiently make high-quality connections between job seekers and employers to be able to deliver more impactful results to our customers with our limited workforce. 
 
 Using the Application
 ---------------------
