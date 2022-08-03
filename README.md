@@ -31,7 +31,7 @@ TiO needs a way to efficiently make high-quality connections between job seekers
 
 **Note:** *This is an internal tool that will be used by TiO staff. Admin settings will be hidden when this is rolled out for general use by partner organizations.*
 
-### Getting Started
+## Getting Started
 ---------------
 1. To run locally: Clone the repository, create a virtual environment, and install the requirements needed to run the application
 ```
