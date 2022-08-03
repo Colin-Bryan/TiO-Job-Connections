@@ -5,7 +5,7 @@
 #### Project by: Colin Bryan
 #### Project Structure: Natural Language Processing
 #### Category: Knowledge & Education Management
-#### Public-Facing Application: [Link](https://tio-job-connections.ue.r.appspot.com/)
+#### Public-Facing Application: [Link](https://colin-bryan-tio-job-connections-app-mkw11p.streamlitapp.com/)
 
 ## Background
 This is Opportunity (“TiO”) is a social impact company that is focused on breaking down barriers in the job market by empowering people with assets, connections, and confidence.
