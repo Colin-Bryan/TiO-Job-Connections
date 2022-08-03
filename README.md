@@ -11,12 +11,12 @@ Background
 ----------
 This is Opportunity (“TiO”) is a social impact company that is focused on breaking down barriers in the job market by empowering people with assets, connections, and confidence.
 <br>
-TiO provides professional development and economic advancement solutions for nonprofits to help fill the gaps of their programming and to improve the outcomes for the populations that they serve.
 <br>
-Our top initiative is a Job Placement Program, where we connect job seekers from our nonprofit partners to employer partners with open positions. 
+TiO provides professional development and economic advancement solutions for nonprofits to help fill the gaps of their programming and to improve the outcomes for the populations that they serve.
 
 Problem Statement
 -----------------
+* TiO's top initiative is a Job Placement Program, where we connect job seekers from our nonprofit partners to employer partners with open positions. 
 * Creating a high-quality Job Placement Program is a laborious task due to manual touchpoints and relationship building. 
 * Resumes and job postings need to be collected, documents need to be reviewed, connections need to be facilitated between job seekers and employers, and the list goes on and on.
 * TiO needs a way to efficiently make high-quality connections between job seekers and employers to be able to deliver more impactful results to our customers. 
