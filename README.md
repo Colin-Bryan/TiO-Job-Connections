@@ -1,9 +1,9 @@
-# Connecting Job Seekers to Job Opportunities through NLP
+# Connecting Job Seekers to Job Opportunities
  ![image](https://storage.googleapis.com/tio-job-connections-static-images/TiO%20Logo.png)
 
 #### AIPI 540 Deep Learning Applications
 #### Project by: Colin Bryan
-#### Project Structure: Natural Language Processing \
+#### Project Structure: Natural Language Processing
 #### Category: Knowledge & Education Management
 #### Public-Facing Application: [Link](https://tio-job-connections.ue.r.appspot.com/)
 
