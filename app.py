@@ -15,13 +15,10 @@ from google.oauth2 import service_account
 from google.cloud import storage
 from io import BytesIO
 
-# Get service key for accessing Google Cloud (local only)
-#credentials = os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'ServiceKey_GoogleCloud.json'
 
-# Create API client
+# Create API client for Streamlit
 credentials = service_account.Credentials.from_service_account_info(
-    st.secrets["gcp_service_account"]
-)
+    st.secrets["gcp_service_account"])
 
 # Initialize storage client from GCP
 storage_client = storage.Client(credentials=credentials)
@@ -82,13 +79,13 @@ def main():
                     gcp_storage_bucket = storage_client.get_bucket('tio-job-connections.appspot.com')
                     
                     # Get blob
-                    blob = storage.blob.Blob('postings/Job Postings.xlsx', gcp_storage_bucket)
+                    blob = storage.blob.Blob('postings/Job Postings.csv', gcp_storage_bucket)
 
                     # Get content
                     content = blob.download_as_string()
 
                     # Read into dataframe
-                    jobs_df = pd.read_excel(BytesIO(content))
+                    jobs_df = pd.read_csv(BytesIO(content))
                 
                 except:
                     st.error('No jobs found in database. Please update postings')
@@ -178,13 +175,13 @@ def main():
             gcp_storage_bucket = storage_client.get_bucket('tio-job-connections.appspot.com')
                     
             # Get blob
-            blob = storage.blob.Blob('postings/Job Postings.xlsx', gcp_storage_bucket)
+            blob = storage.blob.Blob('postings/Job Postings.csv', gcp_storage_bucket)
 
             # Get content
             content = blob.download_as_string()
 
             # Read into dataframe
-            jobs_df = pd.read_excel(BytesIO(content))
+            jobs_df = pd.read_csv(BytesIO(content))
 
             # Replace holder element with container to show current postings
             with screen_content_holder.container():
