@@ -209,7 +209,8 @@ def main():
 
                 # Access gcp bucket
                 gcp_storage_bucket = storage_client.get_bucket('tio-job-connections.appspot.com')
-
+                print('Bucket accessed: {}'.format(gcp_storage_bucket))
+                
                 # Process employer postings
                 postings_df = get_employer_postings(gcp_storage_bucket)
 
