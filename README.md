@@ -40,11 +40,10 @@ pip install -r requirements.txt
 2. Start the Streamlit app
 ```
 streamlit run main.py
-
+```
 3. Job postings are maintained in an Excel file in Google Cloud Storage. Non-TiO users will not be able to update this file.
 
 4. Modeling approaches can be found and edited in the AnalyzeText() class.
-```
 
 ## Future Work
 * Incorporating additional attributes and data sources
