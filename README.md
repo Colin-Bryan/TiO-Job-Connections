@@ -27,7 +27,7 @@ TiO needs a way to efficiently make high-quality connections between job seekers
 
 2. After the resume is uploaded, click **Process** to compare the resume to the existing job postings in the database
 
-3. The Top 10 results are displayed to the user based on similarity scores between the resume and the existing job postings
+3. The Top 10 results are displayed to the user based on similarity scores between the resume and the existing job postings. Both word count modeling and transformer modeling are used together to produce an average similarity score for the final output. 
 
 **Note:** *This is an internal tool that will be used by TiO staff. Admin settings will be hidden when this is rolled out for general use by partner organizations.*
 
