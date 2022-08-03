@@ -35,6 +35,10 @@ def get_employer_postings(gcp_storage_bucket):
 
         # Read into dataframe
         postings_df = pd.read_excel(BytesIO(content))
+
+        # For troubleshooting
+        print(postings_df.shape)
+
     
     except:
         st.error('No jobs found in database. Please update postings')
