@@ -8,14 +8,12 @@
 #### Public-Facing Application: [Link](https://tio-job-connections.ue.r.appspot.com/)
 
 ## Background
-----------
 ### This is Opportunity (“TiO”) is a social impact company that is focused on breaking down barriers in the job market by empowering people with assets, connections, and confidence.
 <br>
 <br>
 ### TiO provides professional development and economic advancement solutions for nonprofits to help fill the gaps of their programming and to improve the outcomes for the populations that they serve.
 
 ## Problem Statement
------------------
 ### TiO's top initiative is a Job Placement Program, where we connect job seekers from our nonprofit partners to employer partners with open positions. Creating a high-quality Job Placement Program is a laborious task due to manual touchpoints and relationship building. 
 <br>
 <br>
@@ -25,7 +23,6 @@
 ### TiO needs a way to efficiently make high-quality connections between job seekers and employers to be able to deliver more impactful results to our customers with our limited workforce. 
 
 ## Using the Application
----------------------
 1. Upon accessing the URL, users are asked to upload a resume in **.DOCX** or **.PDF** format
 
 2. After the resume is uploaded, click **Process** to compare the resume to the existing job postings in the database
@@ -34,7 +31,7 @@
 
 **Note:** *This is an internal tool that will be used by TiO staff. Admin settings will be hidden when this is rolled out for general use by partner organizations.*
 
-Getting Started
+### Getting Started
 ---------------
 1. To run locally: Clone the repository, create a virtual environment, and install the requirements needed to run the application
 ```
