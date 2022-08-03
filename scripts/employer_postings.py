@@ -157,6 +157,10 @@ def process_URL_postings(postings_df, gcp_storage_bucket):
     # Add "Source" column - defaulting Indeed
     scraped_df['Source'] = 'Indeed'
 
+    # For troubleshooting
+    print(scraped_df.shape)
+
+
     # Combine job title, job location, and job description into full_text column to use as input for model
     scraped_df['full_text'] = scraped_df.apply(lambda x: ' '.join([x['Title'],x['Location'],x['Description']]),axis=1)
 
