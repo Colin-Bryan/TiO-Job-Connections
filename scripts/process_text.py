@@ -13,14 +13,16 @@ import pickle
 import shutil
 import json
 import io
+import streamlit as st
 
 # .pdf processing
-from pdfminer.high_level import extract_text
-from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
-from pdfminer.converter import TextConverter
-from pdfminer.layout import LAParams
-from pdfminer.pdfpage import PDFPage
-from io import StringIO
+# from pdfminer.high_level import extract_text
+# from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
+# from pdfminer.converter import TextConverter
+# from pdfminer.layout import LAParams
+# from pdfminer.pdfpage import PDFPage
+# from io import StringIO
+import pdfplumber
 
 
 # .docx processing
@@ -116,13 +118,10 @@ class ExtractResumeText():
                 # Get raw text
                 #raw_text = extract_text(document)
 
-                with fitz.open(stream=document.read(), filetype ="pdf") as doc:
-                    raw_text = ""
-                    for page in doc:
-                        raw_text += page.getText()
-                doc.close()
+                with pdfplumber.open(document) as pdf:
+                    page = pdf.pages[0]
+                    raw_text = page.extract_text()
                 
-               
             except:      
                 st.error('Text cannot be extracted from the resume. Please review the file and try again.')
 
