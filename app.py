@@ -201,49 +201,51 @@ def main():
         # Hide resume upload form
         resume_form_holder.empty()
 
-        # Return list of posts as a dataframe and list of URLs to go scrape the web
-        with screen_content_holder.container():
+        st.warning('🚧 Update Job Postings is currently under construction')
+        #### CB 8/4 - Commenting out because Indeed is rejecting Streamlit cloud IP ####
+        # # Return list of posts as a dataframe and list of URLs to go scrape the web
+        # with screen_content_holder.container():
 
-            with st.spinner("Updating Job Postings..."):
+        #     with st.spinner("Updating Job Postings..."):
 
-                # Access gcp bucket
-                gcp_storage_bucket = storage_client.get_bucket('tio-job-connections.appspot.com')
-                print('Bucket accessed to start processing: {}'.format(gcp_storage_bucket))
+        #         # Access gcp bucket
+        #         gcp_storage_bucket = storage_client.get_bucket('tio-job-connections.appspot.com')
+        #         print('Bucket accessed to start processing: {}'.format(gcp_storage_bucket))
 
-                # Process employer postings
-                postings_df = get_employer_postings(gcp_storage_bucket)
+        #         # Process employer postings
+        #         postings_df = get_employer_postings(gcp_storage_bucket)
 
-                print('Job posting execution started')
-                print('After retrieving initial job postings, the shape of the DataFrame is {}'.format(postings_df.shape))
+        #         print('Job posting execution started')
+        #         print('After retrieving initial job postings, the shape of the DataFrame is {}'.format(postings_df.shape))
  
-            with st.spinner("Scraping job data from URLs..."):
+        #     with st.spinner("Scraping job data from URLs..."):
                 
-                print('Scraping job data now')
+        #         print('Scraping job data now')
 
-                # CB 7.16 - Only scraping indeed postings as part of this project. Update to be more comprehensive in future
-                # Processes and tokenizes URL postings
-                jobs_df = process_URL_postings(postings_df, gcp_storage_bucket)
+        #         # CB 7.16 - Only scraping indeed postings as part of this project. Update to be more comprehensive in future
+        #         # Processes and tokenizes URL postings
+        #         jobs_df = process_URL_postings(postings_df, gcp_storage_bucket)
 
-                print('After processing URLs, the shape of the DataFrame is {}'.format(jobs_df.shape))
+        #         print('After processing URLs, the shape of the DataFrame is {}'.format(jobs_df.shape))
 
-            with st.spinner("Building Word Count Features..."):
-                ### Build word count features from processed_text (Tf-idf and Bag-of-words) ###
-                anlyz_txt.build_and_analyze_word_count_features(gcp_storage_bucket, data = jobs_df, data_type='jobs')
+        #     with st.spinner("Building Word Count Features..."):
+        #         ### Build word count features from processed_text (Tf-idf and Bag-of-words) ###
+        #         anlyz_txt.build_and_analyze_word_count_features(gcp_storage_bucket, data = jobs_df, data_type='jobs')
 
-            with st.spinner("Creating Semantic Embeddings..."):
-                ### Sentence Transformer for jobs ###
-                anlyz_txt.analyze_with_transformer(gcp_storage_bucket, resume_data = "", jobs_df = jobs_df, data_type='jobs')
+        #     with st.spinner("Creating Semantic Embeddings..."):
+        #         ### Sentence Transformer for jobs ###
+        #         anlyz_txt.analyze_with_transformer(gcp_storage_bucket, resume_data = "", jobs_df = jobs_df, data_type='jobs')
                 
-                print('Job posting execution finished')
+        #         print('Job posting execution finished')
 
-                # Display success message
-                st.success("✔️ Job data has been updated successfully")
+        #         # Display success message
+        #         st.success("✔️ Job data has been updated successfully")
 
-                # When processing is finished, show job postings with tokenized text
-                st.subheader('Current Job Postings in Database: {}'.format(len(jobs_df)))
+        #         # When processing is finished, show job postings with tokenized text
+        #         st.subheader('Current Job Postings in Database: {}'.format(len(jobs_df)))
 
-                # Display dataframe
-                st.dataframe(jobs_df.loc[:,['Employer','Title']].sort_values(by = ['Employer'], ascending = True))
+        #         # Display dataframe
+        #         st.dataframe(jobs_df.loc[:,['Employer','Title']].sort_values(by = ['Employer'], ascending = True))
 
 # Execute main function
 if __name__ == "__main__":
