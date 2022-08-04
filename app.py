@@ -15,7 +15,6 @@ from google.oauth2 import service_account
 from google.cloud import storage
 from io import BytesIO
 
-
 # Create API client for Streamlit
 credentials = service_account.Credentials.from_service_account_info(
     st.secrets["gcp_service_account"])
@@ -209,8 +208,8 @@ def main():
 
                 # Access gcp bucket
                 gcp_storage_bucket = storage_client.get_bucket('tio-job-connections.appspot.com')
-                print('Bucket accessed: {}'.format(gcp_storage_bucket))
-                
+                print('Bucket accessed to start processing: {}'.format(gcp_storage_bucket))
+
                 # Process employer postings
                 postings_df = get_employer_postings(gcp_storage_bucket)
 
@@ -218,6 +217,8 @@ def main():
                 print('After retrieving initial job postings, the shape of the DataFrame is {}'.format(postings_df.shape))
  
             with st.spinner("Scraping job data from URLs..."):
+                
+                print('Scraping job data now')
 
                 # CB 7.16 - Only scraping indeed postings as part of this project. Update to be more comprehensive in future
                 # Processes and tokenizes URL postings
