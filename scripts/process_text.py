@@ -15,6 +15,7 @@ import json
 import io
 
 # .pdf processing
+import fitz
 from pdfminer.high_level import extract_text
 from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
 from pdfminer.converter import TextConverter
@@ -22,9 +23,9 @@ from pdfminer.layout import LAParams
 from pdfminer.pdfpage import PDFPage
 from io import StringIO
 
+
 # .docx processing
 import docx2txt
-import textract
 
 ### GCP Imports and Setup ###
 import google.auth
@@ -107,18 +108,23 @@ class ExtractResumeText():
         except:
             try:
                 # Initialize device from pdfminer to get resume text from pdf
-                device = TextConverter(PDFResourceManager(), StringIO, laparams=LAParams())
+                #device = TextConverter(PDFResourceManager(), StringIO, laparams=LAParams())
                 
                 # Initialize interpreter and get file_pages
-                interpreter = PDFPageInterpreter(PDFResourceManager(), device)
-                file_pages = PDFPage.get_pages(document)
-                
+                #interpreter = PDFPageInterpreter(PDFResourceManager(), device)
+                #file_pages = PDFPage.get_pages(document)
+
                 # Get raw text
-                raw_text = extract_text(document)
-            except:
-                # CB 7.16 - Commenting out because we will not be accepting .doc
-                # Use textract's process function to get resume text from .doc
-                #raw_text = textract.process(document)       
+                #raw_text = extract_text(document)
+
+                with fitz.open(stream=document.read(), filetype ="pdf") as doc:
+                    raw_text = ""
+                    for page in doc:
+                        raw_text += page.getText()
+                doc.close()
+                
+               
+            except:      
                 st.error('Text cannot be extracted from the resume. Please review the file and try again.')
 
         return raw_text.replace('\t', ' ')
