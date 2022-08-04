@@ -162,7 +162,7 @@ def process_URL_postings(postings_df, gcp_storage_bucket):
     scraped_df['Source'] = 'Indeed'
 
     # For troubleshooting
-    print(scraped_df.shape)
+    print('Shape of scraped DataFrame: {}'.format(scraped_df.shape))
 
 
     # Combine job title, job location, and job description into full_text column to use as input for model
