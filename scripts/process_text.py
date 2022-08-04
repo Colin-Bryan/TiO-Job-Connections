@@ -15,7 +15,6 @@ import json
 import io
 
 # .pdf processing
-import fitz
 from pdfminer.high_level import extract_text
 from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
 from pdfminer.converter import TextConverter
