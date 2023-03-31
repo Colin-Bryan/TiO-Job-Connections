@@ -1,5 +1,4 @@
 # Connecting Job Seekers to Job Opportunities
- ![image](https://storage.googleapis.com/tio-job-connections-static-images/TiO%20Logo.png)
 
 #### AIPI 540 Deep Learning Applications
 #### Project by: Colin Bryan
